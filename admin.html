@@ -53,9 +53,11 @@
         .direction-btn { width: 100%; padding: 14px; margin-bottom: 10px; border: none; border-radius: 8px; background: #3b82f6; color: white; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
 
         .team-analysis-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
-        .team-analysis-card { padding: 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid #334155; position: relative; display: flex; flex-direction: column; gap: 6px; }
+        .team-analysis-card { padding: 14px 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid #334155; position: relative; display: flex; flex-direction: column; gap: 6px; }
         .team-analysis-card.rank-1 { border-color: #fbbf24; background: rgba(251, 191, 36, 0.05); }
-        .roster-btn { position: absolute; top: 12px; right: 12px; background: #334155; color: #e2e8f0; border: none; border-radius: 4px; font-size: 0.65rem; padding: 4px 8px; cursor: pointer; }
+        
+        /* 🔥 디자인 핵심: 명단 버튼을 우측 하단으로 이동 */
+        .roster-btn { position: absolute; bottom: 12px; right: 12px; background: #334155; color: #e2e8f0; border: none; border-radius: 6px; font-size: 0.75rem; font-weight:700; padding: 6px 12px; cursor: pointer; }
 
         .card { background: var(--card); border-radius: 12px; padding: 1.2rem; margin-bottom: 1rem; border: 1px solid #334155; }
         .card-title { font-weight: 700; margin-bottom: 12px; font-size: 1rem; color: #f8fafc; display: flex; justify-content: space-between; align-items: center; }
@@ -208,7 +210,7 @@
     const firebaseConfig = {
       apiKey: "AIzaSyD6NlShxLLalttbUu3twkADVVsZIzGsz-g",
       authDomain: "urc-yut-nol.firebaseapp.com",
-      databaseURL: "https://urc-yut-nol-default-rtdb.firebaseio.com", // 👈 반드시 실제 DB 주소를 넣어주세요!
+      databaseURL: "https://urc-yut-nol-default-rtdb.firebaseio.com", // 👈 반드시 실제 DB 주소를 넣어주세요! (https://...)
       projectId: "urc-yut-nol",
       storageBucket: "urc-yut-nol.firebasestorage.app",
       messagingSenderId: "164372791390",
@@ -216,9 +218,8 @@
     };
     
     firebase.initializeApp(firebaseConfig);
-    const dbRef = firebase.database().ref('urcYutNolState_v14'); // v14 새로운 DB (과거 에러 찌꺼기 방지)
+    const dbRef = firebase.database().ref('urcYutNolState_v14');
 
-    // v14.0 윷놀이 골인 진척도 판별맵 (숫자가 높을수록 골인에 가까움)
     const progMap = {
         0:0, 1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8, 9:9, 10:10,
         11:11, 12:12, 13:13, 14:14, 15:15, 16:16, 17:17, 18:18, 19:19,
@@ -272,8 +273,7 @@
         let defState = {
             historyLog: [], futureLog: [], 
             teams: [1,2,3,4].map(id => ({
-                id: id, name: rosterData[id].name, color: rosterData[id].color,
-                score: 0, // v14.0 스코어 속성 추가
+                id: id, name: rosterData[id].name, color: rosterData[id].color, score: 0,
                 pieces: [{id:'A',pos:0,st:'wait'},{id:'B',pos:0,st:'wait'},{id:'C',pos:0,st:'wait'},{id:'D',pos:0,st:'wait'}],
                 lastM: "-"
             })),
@@ -297,11 +297,7 @@
             state.activeMissions.forEach(m => { if(!m.assignees) m.assignees = []; });
             if(!state.members) state = getDefaultState();
             state.members.forEach(m => { if(!m.runs) m.runs = {}; });
-            
-            // 구버전 데이터 연동시 스코어 자동 복구용 코드
-            state.teams.forEach(t => {
-                if(typeof t.score === 'undefined') t.score = 0;
-            });
+            state.teams.forEach(t => { if(typeof t.score === 'undefined') t.score = 0; });
         } else {
             dbRef.set(state);
         }
@@ -446,7 +442,7 @@
 
     function renderCanvas() {
         const cvs = document.getElementById('yutBoard');
-        if(!cvs) return;
+        if(!cvs || state.teams.length === 0) return;
         const ctx = cvs.getContext('2d');
         ctx.clearRect(0,0,400,400);
 
@@ -477,6 +473,7 @@
     }
 
     function render() {
+        if(state.teams.length === 0) return;
         renderCanvas();
         
         // 1. 헤더 미션 보드 (우리 팀 것만 표시)
@@ -494,12 +491,11 @@
             }).join('');
         }
         
-        // 2. 팀별 실시간 랭킹 보드 (스코어순 -> 근접도순 정렬)
+        // 🔥 v14.1 랭킹보드 디자인 전면 수정 (스코어 분리 & 우측 하단 명단 버튼)
         let sortedTeams = [...state.teams].sort((a, b) => {
             let aScore = a.score || 0; let bScore = b.score || 0;
-            if (bScore !== aScore) return bScore - aScore; // 1순위: 스코어(골인 수)
+            if (bScore !== aScore) return bScore - aScore; 
             
-            // 2순위: 필드 말 중 골인지점(20)에 가장 가까운 정도
             let aMax = Math.max(0, ...a.pieces.filter(p => p.st === 'active').map(p => progMap[p.pos] || 0));
             let bMax = Math.max(0, ...b.pieces.filter(p => p.st === 'active').map(p => progMap[p.pos] || 0));
             return bMax - aMax;
@@ -515,21 +511,28 @@
                 let rankIcons = ["🏆 1위", "🥈 2위", "🥉 3위", "🏃 4위"];
                 let cardClass = index === 0 ? "team-analysis-card rank-1" : "team-analysis-card";
                 let scoreColor = index === 0 ? "#fbbf24" : "#34d399";
-
+                
                 return `
-                <div class="${cardClass}">
-                    <button class="roster-btn" onclick="showRoster(${t.id})">명단</button>
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <strong style="color:${t.color}; font-size:1.05rem;">${rankIcons[index]} <span style="font-size:0.9rem;">(${t.name})</span></strong>
-                        <span style="font-size:0.75rem; color:#94a3b8; font-weight:700;">필드 말 ${active}개 / 스코어 <span style="color:${scoreColor}; font-size:1rem;">${t.score}점</span></span>
+                <div class="${cardClass}" style="padding-bottom: 20px;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
+                        <strong style="color:${t.color}; font-size:1.15rem; line-height:1.3;">
+                            ${rankIcons[index]}<br><span style="font-size:0.9rem; opacity:0.9;">(${t.name})</span>
+                        </strong>
+                        <div style="text-align:right;">
+                            <div style="font-size:0.75rem; color:#94a3b8; font-weight:700; margin-bottom:2px;">필드 말 ${active}개</div>
+                            <div style="color:${scoreColor}; font-size:1.3rem; font-weight:900; text-shadow: 0 0 10px rgba(0,0,0,0.3);">${t.score}점</div>
+                        </div>
                     </div>
-                    <div style="font-size:0.8rem; color:#cbd5e1; margin-top:4px;">🎯 최근 윷: <strong style="color:#fff;">${t.lastM || '-'}</strong></div>
-                    <div style="font-size:0.8rem; color:#cbd5e1;">🚫 3일휴식: <span style="color:${bannedMembers.length > 0 ? '#ef4444' : '#34d399'}; font-weight:700;">${bannedText}</span></div>
+                    
+                    <div style="font-size:0.8rem; color:#cbd5e1; margin-bottom:4px;">🎯 최근 윷: <strong style="color:#fff;">${t.lastM || '-'}</strong></div>
+                    <div style="font-size:0.8rem; color:#cbd5e1; max-width: 75%; line-height:1.4;">🚫 3일휴식: <span style="color:${bannedMembers.length > 0 ? '#ef4444' : '#34d399'}; font-weight:700;">${bannedText}</span></div>
+                    
+                    <button class="roster-btn" onclick="showRoster(${t.id})">🔍 명단</button>
                 </div>`;
             }).join('');
         }
 
-        // 3. 미션 배정 탭 (우리 팀만 표시)
+        // 3. 미션 배정 탭
         const team1Members = state.members.filter(m => m.teamId === 1);
         const missionContainer = document.getElementById('mission-list-container');
         if(missionContainer) {
@@ -679,8 +682,12 @@
 
         if (teamIdx === 0 && moveCount !== 0 && moveCount !== -1) {
             state.activeMissions.push({ 
-                id: Date.now(), teamId: team.id, teamName: team.name, 
-                text: fullMissionText, defaultDist: defaultDistMap[moveCount], assignees: [] 
+                id: Date.now(), 
+                teamId: team.id, 
+                teamName: team.name, 
+                text: fullMissionText, 
+                defaultDist: defaultDistMap[moveCount], 
+                assignees: [] 
             });
         }
 
@@ -707,7 +714,6 @@
 
     function applyChoice(choice) { document.getElementById('direction-select-overlay').classList.add('hidden'); executeMove(pendingData.pieces, pendingData.move, choice, pendingData.teamIdx); pendingData = null; }
 
-    // v14.0 무한 리필 및 스코어 증가 로직
     function executeMove(movingPieces, moveCount, choice, teamIdx) {
         let curr = movingPieces[0].pos === 0 && movingPieces[0].st === 'wait' ? 0 : movingPieces[0].pos;
 
@@ -717,7 +723,6 @@
         let caughtText = "";
         let isGoal = false;
 
-        // 다른 말 잡기 로직
         if (curr !== 0 && curr !== 20) {
             state.teams.forEach((t, i) => {
                 if (i !== parseInt(teamIdx)) {
@@ -730,12 +735,11 @@
             });
         }
 
-        // 골인 처리 및 무한 리필 로직
         movingPieces.forEach(p => { 
             if(curr === 20) {
                 state.teams[teamIdx].score += 1;
                 p.pos = 0; 
-                p.st = 'wait'; // 대기실로 원복
+                p.st = 'wait'; 
                 isGoal = true;
             } else {
                 p.pos = curr; 
@@ -753,6 +757,13 @@
             alert(`${state.teams[teamIdx].name} 이동 완료! 랭킹 보드에 윷 결과가 업데이트되었습니다.${caughtText}${goalAlert}`); 
             tab('page-board', document.getElementById('tab-board')); 
         }
+    }
+
+    function resetGame() { 
+        if(confirm("모든 데이터가 초기화됩니다. 정말 진행할까요?")) { 
+            dbRef.set(getDefaultState()); 
+            alert("초기화 완료! 처음 상태로 돌아갔습니다.");
+        } 
     }
 </script>
 </body>
