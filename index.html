@@ -45,9 +45,11 @@
         canvas { width: 100%; height: 100%; }
 
         .team-analysis-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
-        .team-analysis-card { padding: 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid #334155; position: relative; display: flex; flex-direction: column; gap: 6px; }
+        .team-analysis-card { padding: 14px 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid #334155; position: relative; display: flex; flex-direction: column; gap: 6px; }
         .team-analysis-card.rank-1 { border-color: #fbbf24; background: rgba(251, 191, 36, 0.05); }
-        .roster-btn { position: absolute; top: 12px; right: 12px; background: #334155; color: #e2e8f0; border: none; border-radius: 4px; font-size: 0.65rem; padding: 4px 8px; cursor: pointer; }
+        
+        /* 🚀 명단 버튼 우측 하단 고정 */
+        .roster-btn { position: absolute; bottom: 12px; right: 12px; background: #334155; color: #e2e8f0; border: none; border-radius: 6px; font-size: 0.75rem; font-weight:700; padding: 6px 12px; cursor: pointer; }
 
         .card { background: var(--card); border-radius: 12px; padding: 1.2rem; margin-bottom: 1rem; border: 1px solid #334155; }
         .card-title { font-weight: 700; margin-bottom: 12px; font-size: 1rem; color: #f8fafc; display: flex; justify-content: space-between; align-items: center; }
@@ -77,7 +79,7 @@
 <header>
     <div class="header-top">
         <h1><div class="live-dot"></div> 🏃‍♂️ 러닝 윷놀이 관전</h1>
-        <span id="header-badge" class="badge-mini">1주차 / D-14</span>
+        <span id="header-badge" class="badge-mini">로딩중...</span>
     </div>
     <div id="header-mission-board" class="header-mission-board">
         <div class="empty-mission">데이터를 불러오는 중입니다...</div>
@@ -97,7 +99,7 @@
 <div id="page-team" class="content-region">
     <div class="card">
         <div class="card-title"><span>🎯 오늘의 미션 배정 현황</span></div>
-        <p style="font-size:0.75rem; color:#94a3b8; margin-bottom:10px;">관리자가 배정한 우리팀의 미션과 주자 현황입니다.</p>
+        <p style="font-size:0.75rem; color:#94a3b8; margin-bottom:10px;">관리자가 배정한 우리 팀 미션과 주자 현황입니다.</p>
         <div id="mission-list-container"></div>
     </div>
 
@@ -132,12 +134,12 @@
 
 <script>
     // =========================================================================
-    // 🔥 Firebase 설정
+    // 🔥 Firebase 설정 (관리자와 반드시 동일한 databaseURL 사용!)
     // =========================================================================
     const firebaseConfig = {
       apiKey: "AIzaSyD6NlShxLLalttbUu3twkADVVsZIzGsz-g",
       authDomain: "urc-yut-nol.firebaseapp.com",
-      databaseURL: "https://urc-yut-nol-default-rtdb.firebaseio.com", // 👈 반드시 실제 DB 주소를 넣어주세요! (https://...)
+      databaseURL: "https://urc-yut-nol-default-rtdb.firebaseio.com", 
       projectId: "urc-yut-nol",
       storageBucket: "urc-yut-nol.firebasestorage.app",
       messagingSenderId: "164372791390",
@@ -145,7 +147,7 @@
     };
     
     firebase.initializeApp(firebaseConfig);
-    const dbRef = firebase.database().ref('urcYutNolState_v14'); // 관리자와 동일한 저장소
+    const dbRef = firebase.database().ref('urcYutNolState_v14');
 
     const progMap = {
         0:0, 1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8, 9:9, 10:10,
@@ -183,7 +185,6 @@
 
     let state = { teams: [], members: [], activeMissions: [], viewMode: 'week' };
 
-    // 뷰어 모드이므로 오직 데이터 읽기만 수행
     dbRef.on('value', (snapshot) => {
         const data = snapshot.val();
         if(data) { 
@@ -217,9 +218,8 @@
     }
 
     function showRoster(teamId) {
-        let tData = rosterData[teamId];
         let members = state.members.filter(m => m.teamId === teamId).map(m => m.name);
-        document.getElementById('roster-modal-title').innerText = `${teamId}팀 (${tData.name})`;
+        document.getElementById('roster-modal-title').innerText = `${teamId}팀 명단`;
         let listHTML = members.map(m => `<span style="display:inline-block; width:45%; margin-bottom:8px;">🏃 ${m}</span>`).join('');
         document.getElementById('roster-modal-content').innerHTML = listHTML;
         document.getElementById('roster-modal').classList.remove('hidden');
@@ -282,26 +282,23 @@
         if(state.teams.length === 0) return;
         renderCanvas();
         
-        // 1. 헤더 미션 보드 (읽기 전용)
         const headerMissionBoard = document.getElementById('header-mission-board');
         if (state.activeMissions.length === 0) {
             headerMissionBoard.innerHTML = '<div class="empty-mission">오늘 진행할 미션이 없습니다.</div>';
         } else {
             headerMissionBoard.innerHTML = state.activeMissions.map(m => {
                 const missionTitle = m.text.split('(')[0];
-                const tName = m.teamName ? m.teamName : `${m.teamId}팀`;
-                const runners = m.assignees.length > 0
-                    ? m.assignees.map(a => `<span class="runner-chip ${a.completed ? 'completed' : ''}">${a.name}</span>`).join('')
+                const assignees = m.assignees || [];
+                const runners = assignees.length > 0
+                    ? assignees.map(a => `<span class="runner-chip ${a.completed ? 'completed' : ''}">${a.name}</span>`).join('')
                     : '<span class="runner-chip empty">배정 대기중</span>';
-                return `<div class="header-mission-item"><span class="mission-badge">[${tName}] ${missionTitle}</span><div class="runner-chips">${runners}</div></div>`;
+                return `<div class="header-mission-item"><span class="mission-badge">${missionTitle}</span><div class="runner-chips">${runners}</div></div>`;
             }).join('');
         }
         
-        // 2. 팀별 실시간 랭킹 보드
         let sortedTeams = [...state.teams].sort((a, b) => {
             let aScore = a.score || 0; let bScore = b.score || 0;
             if (bScore !== aScore) return bScore - aScore; 
-            
             let aMax = Math.max(0, ...a.pieces.filter(p => p.st === 'active').map(p => progMap[p.pos] || 0));
             let bMax = Math.max(0, ...b.pieces.filter(p => p.st === 'active').map(p => progMap[p.pos] || 0));
             return bMax - aMax;
@@ -313,80 +310,66 @@
                 let active = t.pieces.filter(p => p.st === 'active').length;
                 let bannedMembers = state.members.filter(m => m.teamId === t.id && checkBan(m)).map(m => m.name);
                 let bannedText = bannedMembers.length > 0 ? bannedMembers.join(', ') : '없음';
-                
                 let rankIcons = ["🏆 1위", "🥈 2위", "🥉 3위", "🏃 4위"];
-                let cardClass = index === 0 ? "team-analysis-card rank-1" : "team-analysis-card";
                 let scoreColor = index === 0 ? "#fbbf24" : "#34d399";
                 
                 return `
-                <div class="${cardClass}">
-                    <button class="roster-btn" onclick="showRoster(${t.id})">명단</button>
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <strong style="color:${t.color}; font-size:1.05rem;">${rankIcons[index]} <span style="font-size:0.9rem;">(${t.name})</span></strong>
-                        <span style="font-size:0.75rem; color:#94a3b8; font-weight:700;">필드 말 ${active}개 / 스코어 <span style="color:${scoreColor}; font-size:1rem;">${t.score}점</span></span>
+                <div class="${index === 0 ? 'team-analysis-card rank-1' : 'team-analysis-card'}" style="padding-bottom: 24px;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
+                        <strong style="color:${t.color}; font-size:1.15rem; line-height:1.3;">
+                            ${rankIcons[index]}<br><span style="font-size:0.9rem; opacity:0.8;">(${t.name})</span>
+                        </strong>
+                        <div style="text-align:right;">
+                            <div style="font-size:0.75rem; color:#94a3b8; font-weight:700;">필드 말 ${active}개</div>
+                            <div style="color:${scoreColor}; font-size:1.4rem; font-weight:900;">${t.score || 0}점</div>
+                        </div>
                     </div>
-                    <div style="font-size:0.8rem; color:#cbd5e1; margin-top:4px;">🎯 최근 윷: <strong style="color:#fff;">${t.lastM || '-'}</strong></div>
-                    <div style="font-size:0.8rem; color:#cbd5e1;">🚫 3일휴식: <span style="color:${bannedMembers.length > 0 ? '#ef4444' : '#34d399'}; font-weight:700;">${bannedText}</span></div>
+                    <div style="font-size:0.8rem; color:#cbd5e1; margin-bottom:4px;">🎯 최근 윷: <strong style="color:#fff;">${t.lastM || '-'}</strong></div>
+                    <div style="font-size:0.8rem; color:#cbd5e1; max-width: 70%; line-height:1.4;">🚫 3일휴식: <span style="color:${bannedMembers.length > 0 ? '#ef4444' : '#34d399'}; font-weight:700;">${bannedText}</span></div>
+                    <button class="roster-btn" onclick="showRoster(${t.id})">🔍 명단</button>
                 </div>`;
             }).join('');
         }
 
-        // 3. 미션 배정 탭 (조작 버튼 완전 제거)
         const missionContainer = document.getElementById('mission-list-container');
         if(missionContainer) {
             if (state.activeMissions.length === 0) {
                 missionContainer.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b; font-size:0.85rem; border:1px dashed #334155; border-radius:8px;">현재 등록된 미션이 없습니다.</div>';
             } else {
-                missionContainer.innerHTML = state.activeMissions.map(m => {
-                    const mTeamName = m.teamName || "1팀";
-                    return `
+                missionContainer.innerHTML = state.activeMissions.map(m => `
                     <div class="mission-box">
-                        <div class="mission-title">
-                            <span style="color:#e2e8f0; font-size:0.85rem; margin-right:5px;">[${mTeamName}]</span>${m.text}
-                        </div>
+                        <div class="mission-title">${m.text}</div>
                         <div style="margin-top: 10px;">
-                            ${m.assignees.length > 0 
+                            ${(m.assignees || []).length > 0 
                                 ? m.assignees.map(a => `<span class="assignee-tag ${a.completed ? 'completed' : ''}">${a.name} ${a.completed ? `<span style="font-size:0.7rem;">(${a.dist}km)</span>` : ''}</span>`).join('') 
                                 : '<span style="color:#64748b; font-size:0.8rem;">관리자의 배정을 대기 중입니다.</span>'}
                         </div>
-                    </div>
-                `}).join('');
+                    </div>`).join('');
             }
         }
 
-        // 4. 팀원 마일리지 현황
         const filterTeamSel = document.getElementById('team-filter');
         if(filterTeamSel) {
             const filterTeamId = parseInt(filterTeamSel.value);
             let filteredMembers = state.members.filter(m => m.teamId === filterTeamId);
-            
-            filteredMembers.sort((a, b) => {
-                return calcDist(b, state.viewMode === 'week' ? currentWeek : 'total') - calcDist(a, state.viewMode === 'week' ? currentWeek : 'total');
-            });
+            filteredMembers.sort((a, b) => calcDist(b, state.viewMode === 'week' ? currentWeek : 'total') - calcDist(a, state.viewMode === 'week' ? currentWeek : 'total'));
             
             document.getElementById('combined-team-status').innerHTML = filteredMembers.map((m, index) => {
-                const isBanned = checkBan(m);
                 const targetDist = calcDist(m, state.viewMode === 'week' ? currentWeek : 'total');
                 const goal = state.viewMode === 'week' ? 10 : 20; 
-                const prog = Math.min(100, (targetDist / goal) * 100);
-                
-                let rankIcon = "";
-                if (targetDist > 0) {
-                    if (index === 0) rankIcon = "🥇 "; else if (index === 1) rankIcon = "🥈 "; else if (index === 2) rankIcon = "🥉 ";
-                }
-                
+                const isBanned = checkBan(m);
                 return `
                 <div style="margin-bottom:12px; border-bottom:1px solid #1e293b; padding-bottom:12px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                         <div>
-                            <span style="font-weight:700; font-size:0.9rem; color:#f8fafc;">${rankIcon}${m.name}</span>
+                            <span style="font-weight:700; font-size:0.9rem; color:#f8fafc;">${targetDist > 0 && index < 3 ? ['🥇 ','🥈 ','🥉 '][index] : ''}${m.name}</span>
                             <span style="font-size:0.7rem; padding:2px 6px; border-radius:4px; margin-left:6px; background:${isBanned ? 'rgba(239,68,68,0.1)' : 'rgba(52,211,153,0.1)'}; color:${isBanned ? '#ef4444' : '#34d399'}; border: 1px solid ${isBanned ? '#ef4444' : '#34d399'};">
                                 ${isBanned ? '🚫 3일휴식' : '✅ 출전가능'}
                             </span>
                         </div>
                         <span style="font-size:0.8rem; font-weight:700; color:${targetDist >= goal ? '#34d399' : '#94a3b8'};">${targetDist.toFixed(1)} / ${goal}km</span>
                     </div>
-                    <div class="progress-bg"><div class="progress-fill" style="width:${prog}%; background:${targetDist >= goal ? '#3b82f6':'#475569'}"></div></div>
+                    <div class="progress-bg"><div class="progress-fill" style="width:${Math.min(100, (targetDist/goal)*100)}%; background:${targetDist >= goal ? '#3b82f6':'#475569'}"></div></div>
                 </div>`;
             }).join('');
         }
