@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏃‍♂️ RUNNING YUT-NOLRI v11.0</title>
+    <title>🏃‍♂️ RUNNING YUT-NOLRI v12.0</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
         :root {
             --primary: #2563eb; --bg: #0f172a; --card: #1e293b; --text: #e2e8f0;
@@ -15,7 +17,11 @@
         
         header { background: var(--card); padding: 1rem 1rem 0.5rem 1rem; box-shadow: 0 4px 10px rgba(0,0,0,0.5); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #334155; }
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        h1 { font-size: 1.1rem; font-weight: 800; color: #fff; margin: 0; }
+        h1 { font-size: 1.1rem; font-weight: 800; color: #fff; margin: 0; display:flex; align-items:center; gap:6px;}
+        /* 실시간 연동 표시용 초록불 */
+        .live-dot { width:8px; height:8px; background:#34d399; border-radius:50%; box-shadow: 0 0 8px #34d399; animation: blink 2s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
         .badge-mini { font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: rgba(59,130,246,0.1); color: #60a5fa; border: 1px solid #3b82f6; }
         
         .header-mission-board { background: #0f172a; border-radius: 8px; padding: 8px 10px; border: 1px solid #334155; max-height: 120px; overflow-y: auto; }
@@ -81,7 +87,7 @@
 
 <header>
     <div class="header-top">
-        <h1>🏃‍♂️ 러닝 윷놀이 v11.0</h1>
+        <h1><div class="live-dot"></div> 🏃‍♂️ 러닝 윷놀이 LIVE</h1>
         <span id="header-badge" class="badge-mini">1주차 / D-14</span>
     </div>
     <div id="header-mission-board" class="header-mission-board"></div>
@@ -99,7 +105,6 @@
                 </div>
             </div>
         </div>
-        
         <h3 style="font-size:1rem; font-weight:800; color:#f8fafc; margin-top:20px;">📊 팀별 전력 분석</h3>
         <div class="team-analysis-list" id="team-info-grid"></div>
     </div>
@@ -154,7 +159,7 @@
     
     <div class="card">
         <div class="card-title">📝 러너 기록 관리 (전체 팀 공용)</div>
-        <p style="font-size:0.75rem; color:#94a3b8; margin-bottom:10px;">타팀이 과거에 뛴 기록이나, 누락된 마일리지를 날짜별로 추가합니다.</p>
+        <p style="font-size:0.75rem; color:#94a3b8; margin-bottom:10px;">과거에 뛴 기록이나 누락된 마일리지를 추가합니다.</p>
         <label>팀 선택</label>
         <select id="record-team-sel" onchange="updateRecordMemberSelect()">
             <option value="1">1팀 윷캔두잇</option><option value="2">2팀 윷알씨</option>
@@ -197,6 +202,22 @@
 </nav>
 
 <script>
+    // ==========================================
+    // Firebase 설정 및 초기화 (v12.0 핵심)
+    // ==========================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyD6NlShxLLalttbUu3twkADVVsZIzGsz-g",
+      authDomain: "urc-yut-nol.firebaseapp.com",
+      projectId: "urc-yut-nol",
+      storageBucket: "urc-yut-nol.firebasestorage.app",
+      messagingSenderId: "164372791390",
+      appId: "1:164372791390:web:3f29653b6f182b3a37f4cf"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const dbRef = firebase.database().ref('urcYutNolState_v1');
+
+    // 날짜 유틸리티
     function formatDateString(dateObj) {
         let y = dateObj.getFullYear();
         let m = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -240,22 +261,56 @@
     const missionDict = { 1:"도", 2:"개", 3:"걸", 4:"윷", 5:"모", "-1":"빽도" };
     const defaultDistMap = { 1: 3, 2: 5, 3: 5, 4: 8, 5: 15, "-1": 0 };
 
-    let state = {
-        historyLog: [],
-        futureLog: [], 
-        teams: [1,2,3,4].map(id => ({
-            id: id, name: rosterData[id].name, color: rosterData[id].color,
-            pieces: [{id:'A',pos:0,st:'wait'},{id:'B',pos:0,st:'wait'},{id:'C',pos:0,st:'wait'},{id:'D',pos:0,st:'wait'}],
-            lastM: "-"
-        })),
-        members: [], 
-        activeMissions: [],
-        viewMode: 'week'
-    };
+    // 기본 상태 생성기
+    function getDefaultState() {
+        let defState = {
+            historyLog: [], futureLog: [], 
+            teams: [1,2,3,4].map(id => ({
+                id: id, name: rosterData[id].name, color: rosterData[id].color,
+                pieces: [{id:'A',pos:0,st:'wait'},{id:'B',pos:0,st:'wait'},{id:'C',pos:0,st:'wait'},{id:'D',pos:0,st:'wait'}],
+                lastM: "-"
+            })),
+            members: [], activeMissions: [], viewMode: 'week'
+        };
+        [1,2,3,4].forEach(tId => {
+            rosterData[tId].members.forEach(mName => { defState.members.push({ teamId: tId, name: mName, runs: {} }); });
+        });
+        return defState;
+    }
 
-    [1,2,3,4].forEach(tId => {
-        rosterData[tId].members.forEach(mName => { state.members.push({ teamId: tId, name: mName, runs: {} }); });
+    let state = getDefaultState();
+
+    // ==========================================
+    // Firebase 실시간 동기화 리스너 (기존 load() 대체)
+    // ==========================================
+    dbRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if(data) { 
+            state = data; 
+            if(!state.historyLog) state.historyLog = []; 
+            if(!state.futureLog) state.futureLog = []; 
+            if(!state.activeMissions) state.activeMissions = [];
+            if(!state.members) state = getDefaultState();
+        } else {
+            dbRef.set(state); // DB가 비어있으면 초기 상태 푸시
+        }
+        
+        // 날짜 드롭다운 세팅 (처음 렌더링 시 필요)
+        const dSel = document.getElementById('record-date-sel');
+        if(dSel && dSel.options.length === 0) {
+            dSel.innerHTML = dateOptions.map(d => `<option value="${d.val}" ${d.val === todayStr ? 'selected' : ''}>${d.label}</option>`).join('');
+        }
+
+        updateHeader(); 
+        updatePieceSelect(); 
+        updateRecordMemberSelect(); 
+        render(); 
     });
+
+    // 상태 저장 함수 (이제 로컬스토리지가 아니라 Firebase로 쏩니다!)
+    function save() { 
+        dbRef.set(state); 
+    }
 
     function saveStateForUndo() {
         let clone = JSON.parse(JSON.stringify(state));
@@ -287,18 +342,6 @@
         save();
     }
 
-    function save() { localStorage.setItem('running_yut_v11', JSON.stringify(state)); render(); }
-    
-    function load() { 
-        const s = localStorage.getItem('running_yut_v11') || localStorage.getItem('running_yut_v10'); // 호환성
-        if(s) { let loaded = JSON.parse(s); if(!loaded.historyLog) loaded.historyLog = []; if(!loaded.futureLog) loaded.futureLog = []; state = loaded; }
-        
-        const dSel = document.getElementById('record-date-sel');
-        dSel.innerHTML = dateOptions.map(d => `<option value="${d.val}" ${d.val === todayStr ? 'selected' : ''}>${d.label}</option>`).join('');
-
-        updateHeader(); updatePieceSelect(); updateRecordMemberSelect(); render(); 
-    }
-
     function updateHeader() { document.getElementById('header-badge').innerText = `${currentWeek}주차 / D-${dDay > 0 ? dDay : 'Day'}`; }
 
     function tab(id, btnElement) {
@@ -310,7 +353,10 @@
         if(id === 'page-board') renderCanvas();
     }
 
-    function setViewMode(mode) { state.viewMode = mode; document.getElementById('btn-view-week').classList.toggle('active', mode === 'week'); document.getElementById('btn-view-total').classList.toggle('active', mode === 'total'); render(); }
+    function setViewMode(mode) { 
+        state.viewMode = mode; 
+        save(); // 뷰 모드 변경도 동기화 할지 선택사항 (일단 동기화)
+    }
 
     function showRoster(teamId) {
         let tData = rosterData[teamId];
@@ -324,6 +370,7 @@
         const teamIdx = document.getElementById('edit-team-sel').value - 1;
         const team = state.teams[teamIdx];
         const sel = document.getElementById('edit-piece-sel');
+        if(!sel) return;
         sel.innerHTML = '';
         let waitPieces = team.pieces.filter(p => p.st === 'wait');
         if (waitPieces.length > 0) sel.innerHTML += `<option value="wait">🟢 새 말 출발 (대기: ${waitPieces.length}개)</option>`;
@@ -334,7 +381,9 @@
     }
 
     function updateRecordMemberSelect() {
-        const tId = parseInt(document.getElementById('record-team-sel').value);
+        const selTeam = document.getElementById('record-team-sel');
+        if(!selTeam) return;
+        const tId = parseInt(selTeam.value);
         const sel = document.getElementById('record-member-sel');
         sel.innerHTML = state.members.filter(m => m.teamId === tId).map(m => `<option value="${m.name}">${m.name}</option>`).join('');
     }
@@ -347,10 +396,10 @@
         
         saveStateForUndo();
         const member = state.members.find(m => m.name === name);
+        if(!member.runs) member.runs = {};
         member.runs[dateStr] = (member.runs[dateStr] || 0) + dist;
         save();
         document.getElementById('record-dist').value = '';
-        alert(`${name}님의 ${dateStr} 기록이 합산되었습니다.`);
     }
 
     function addBlindRecord() {
@@ -358,9 +407,9 @@
         const dateStr = document.getElementById('record-date-sel').value;
         saveStateForUndo();
         const member = state.members.find(m => m.name === name);
+        if(!member.runs) member.runs = {};
         if(!member.runs[dateStr]) member.runs[dateStr] = 0.1; 
         save();
-        alert(`${name}님이 ${dateStr}에 달린 것으로 체크되었습니다.`);
     }
 
     function clearRecord() {
@@ -368,12 +417,12 @@
         const dateStr = document.getElementById('record-date-sel').value;
         saveStateForUndo();
         const member = state.members.find(m => m.name === name);
-        delete member.runs[dateStr];
+        if(member.runs && member.runs[dateStr]) delete member.runs[dateStr];
         save();
-        alert(`${name}님의 ${dateStr} 기록이 삭제(휴식 처리) 되었습니다.`);
     }
 
     function checkBan(member) {
+        if(!member.runs) return false;
         let y1 = new Date(today); y1.setDate(y1.getDate() - 1);
         let y2 = new Date(today); y2.setDate(y2.getDate() - 2);
         let d1 = formatDateString(y1); let d2 = formatDateString(y2);
@@ -381,11 +430,15 @@
     }
 
     function calcDist(member, week) {
+        if(!member.runs) return 0;
         let total = 0;
         for(let dStr in member.runs) {
             let dObj = new Date(dStr);
             let w = dObj < week2Start ? 1 : 2;
-            if (week === 'total' || week === w) total += member.runs[dStr];
+            if (week === 'total' || week === w) {
+                // 0.1은 달림 체크용이므로 거리 계산에서는 0으로 처리 (또는 0.1 그대로 합산 방지)
+                total += (member.runs[dStr] === 0.1 ? 0 : member.runs[dStr]);
+            }
         }
         return total;
     }
@@ -425,7 +478,7 @@
     function render() {
         renderCanvas();
         
-        // 1. 헤더
+        // 1. 헤더 미션 보드
         const headerMissionBoard = document.getElementById('header-mission-board');
         if (state.activeMissions.length === 0) {
             headerMissionBoard.innerHTML = '<div class="empty-mission">오늘 진행할 확정 미션이 없습니다.</div>';
@@ -440,89 +493,99 @@
         }
         
         // 2. 팀 분석 보드
-        document.getElementById('team-info-grid').innerHTML = state.teams.map(t => {
-            let active = t.pieces.filter(p => p.st === 'active').length;
-            let goal = t.pieces.filter(p => p.st === 'goal').length;
-            let bannedMembers = state.members.filter(m => m.teamId === t.id && checkBan(m)).map(m => m.name);
-            let bannedText = bannedMembers.length > 0 ? bannedMembers.join(', ') : '없음';
-            return `
-            <div class="team-analysis-card">
-                <button class="roster-btn" onclick="showRoster(${t.id})">명단</button>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <strong style="color:${t.color}; font-size:1.05rem;">${t.id}팀 ${t.name}</strong>
-                    <span style="font-size:0.75rem; color:#94a3b8; font-weight:700;">필드 ${active} / 골인 ${goal}</span>
-                </div>
-                <div style="font-size:0.8rem; color:#cbd5e1; margin-top:4px;">🎯 최근 윷 결과: <strong style="color:#fff;">${t.lastM || '-'}</strong></div>
-                <div style="font-size:0.8rem; color:#cbd5e1;">🚫 출전 불가: <span style="color:${bannedMembers.length > 0 ? '#ef4444' : '#34d399'}; font-weight:700;">${bannedText}</span></div>
-            </div>`;
-        }).join('');
+        const teamInfoGrid = document.getElementById('team-info-grid');
+        if(teamInfoGrid) {
+            teamInfoGrid.innerHTML = state.teams.map(t => {
+                let active = t.pieces.filter(p => p.st === 'active').length;
+                let goal = t.pieces.filter(p => p.st === 'goal').length;
+                let bannedMembers = state.members.filter(m => m.teamId === t.id && checkBan(m)).map(m => m.name);
+                let bannedText = bannedMembers.length > 0 ? bannedMembers.join(', ') : '없음';
+                return `
+                <div class="team-analysis-card">
+                    <button class="roster-btn" onclick="showRoster(${t.id})">명단</button>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <strong style="color:${t.color}; font-size:1.05rem;">${t.id}팀 ${t.name}</strong>
+                        <span style="font-size:0.75rem; color:#94a3b8; font-weight:700;">필드 ${active} / 골인 ${goal}</span>
+                    </div>
+                    <div style="font-size:0.8rem; color:#cbd5e1; margin-top:4px;">🎯 최근 윷: <strong style="color:#fff;">${t.lastM || '-'}</strong></div>
+                    <div style="font-size:0.8rem; color:#cbd5e1;">🚫 3일휴식: <span style="color:${bannedMembers.length > 0 ? '#ef4444' : '#34d399'}; font-weight:700;">${bannedText}</span></div>
+                </div>`;
+            }).join('');
+        }
 
         // 3. 미션 배정 탭
         const team1Members = state.members.filter(m => m.teamId === 1);
         const missionContainer = document.getElementById('mission-list-container');
-        if (state.activeMissions.length === 0) {
-            missionContainer.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b; font-size:0.85rem; border:1px dashed #334155; border-radius:8px;">현재 배정할 미션이 없습니다.</div>';
-        } else {
-            missionContainer.innerHTML = state.activeMissions.map(m => `
-                <div class="mission-box">
-                    <div class="mission-title">${m.text} <button onclick="deleteMission(${m.id})" style="background:transparent; border:none; color:#ef4444; cursor:pointer; font-size:0.75rem; font-weight:bold;">삭제 ✕</button></div>
-                    <div class="assign-row">
-                        <select id="assign-sel-${m.id}" class="assign-select">${team1Members.map(mem => `<option value="${mem.name}">${mem.name}</option>`).join('')}</select>
-                        <button class="btn-assign" onclick="assignMember(${m.id})">배정</button>
+        if(missionContainer) {
+            if (state.activeMissions.length === 0) {
+                missionContainer.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b; font-size:0.85rem; border:1px dashed #334155; border-radius:8px;">현재 배정할 미션이 없습니다.</div>';
+            } else {
+                missionContainer.innerHTML = state.activeMissions.map(m => `
+                    <div class="mission-box">
+                        <div class="mission-title">${m.text} <button onclick="deleteMission(${m.id})" style="background:transparent; border:none; color:#ef4444; cursor:pointer; font-size:0.75rem; font-weight:bold;">삭제 ✕</button></div>
+                        <div class="assign-row">
+                            <select id="assign-sel-${m.id}" class="assign-select">${team1Members.map(mem => `<option value="${mem.name}">${mem.name}</option>`).join('')}</select>
+                            <button class="btn-assign" onclick="assignMember(${m.id})">배정</button>
+                        </div>
+                        <div>
+                            ${m.assignees.length > 0 
+                                ? m.assignees.map(a => `
+                                    <span class="assignee-tag ${a.completed ? 'completed' : ''}">
+                                        ${a.name} ${a.completed ? `<span style="font-size:0.7rem;">(${a.dist}km)</span>` : ''}
+                                        ${!a.completed ? `<button class="btn-ok" onclick="completeMission(${m.id}, '${a.name}', ${m.defaultDist})">OK</button>` : ''}
+                                        <span class="btn-del" onclick="removeAssignee(${m.id}, '${a.name}')">✕</span>
+                                    </span>`).join('') 
+                                : '<span style="color:#64748b; font-size:0.8rem;">예측 명단을 배정해주세요.</span>'}
+                        </div>
                     </div>
-                    <div>
-                        ${m.assignees.length > 0 
-                            ? m.assignees.map(a => `
-                                <span class="assignee-tag ${a.completed ? 'completed' : ''}">
-                                    ${a.name} ${a.completed ? `<span style="font-size:0.7rem;">(${a.dist}km)</span>` : ''}
-                                    ${!a.completed ? `<button class="btn-ok" onclick="completeMission(${m.id}, '${a.name}', ${m.defaultDist})">OK</button>` : ''}
-                                    <span class="btn-del" onclick="removeAssignee(${m.id}, '${a.name}')">✕</span>
-                                </span>`).join('') 
-                            : '<span style="color:#64748b; font-size:0.8rem;">예측 명단을 배정해주세요.</span>'}
-                    </div>
-                </div>
-            `).join('');
+                `).join('');
+            }
         }
 
-        // 4. 팀원 마일리지 현황 (v11.0: 마일리지 기준 내림차순 정렬 적용)
-        const filterTeamId = parseInt(document.getElementById('team-filter').value);
-        let filteredMembers = state.members.filter(m => m.teamId === filterTeamId);
-        
-        // 정렬 로직 (마일리지 높은 순)
-        filteredMembers.sort((a, b) => {
-            const distA = calcDist(a, state.viewMode === 'week' ? currentWeek : 'total');
-            const distB = calcDist(b, state.viewMode === 'week' ? currentWeek : 'total');
-            return distB - distA;
-        });
-        
-        document.getElementById('combined-team-status').innerHTML = filteredMembers.map((m, index) => {
-            const isBanned = checkBan(m);
-            const targetDist = calcDist(m, state.viewMode === 'week' ? currentWeek : 'total');
-            const goal = state.viewMode === 'week' ? 10 : 20; 
-            const prog = Math.min(100, (targetDist / goal) * 100);
+        // 4. 팀원 마일리지 현황
+        const filterTeamSel = document.getElementById('team-filter');
+        if(filterTeamSel) {
+            const filterTeamId = parseInt(filterTeamSel.value);
+            let filteredMembers = state.members.filter(m => m.teamId === filterTeamId);
             
-            // 1,2,3등 메달 표시
-            let rankIcon = "";
-            if (targetDist > 0) {
-                if (index === 0) rankIcon = "🥇 ";
-                else if (index === 1) rankIcon = "🥈 ";
-                else if (index === 2) rankIcon = "🥉 ";
-            }
+            filteredMembers.sort((a, b) => {
+                return calcDist(b, state.viewMode === 'week' ? currentWeek : 'total') - calcDist(a, state.viewMode === 'week' ? currentWeek : 'total');
+            });
             
-            return `
-            <div style="margin-bottom:12px; border-bottom:1px solid #1e293b; padding-bottom:12px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                    <div>
-                        <span style="font-weight:700; font-size:0.9rem; color:#f8fafc;">${rankIcon}${m.name}</span>
-                        <span style="font-size:0.7rem; padding:2px 6px; border-radius:4px; margin-left:6px; background:${isBanned ? 'rgba(239,68,68,0.1)' : 'rgba(52,211,153,0.1)'}; color:${isBanned ? '#ef4444' : '#34d399'}; border: 1px solid ${isBanned ? '#ef4444' : '#34d399'};">
-                            ${isBanned ? '🚫 3일휴식' : '✅ 출전가능'}
-                        </span>
+            document.getElementById('combined-team-status').innerHTML = filteredMembers.map((m, index) => {
+                const isBanned = checkBan(m);
+                const targetDist = calcDist(m, state.viewMode === 'week' ? currentWeek : 'total');
+                const goal = state.viewMode === 'week' ? 10 : 20; 
+                const prog = Math.min(100, (targetDist / goal) * 100);
+                
+                let rankIcon = "";
+                if (targetDist > 0) {
+                    if (index === 0) rankIcon = "🥇 "; else if (index === 1) rankIcon = "🥈 "; else if (index === 2) rankIcon = "🥉 ";
+                }
+                
+                return `
+                <div style="margin-bottom:12px; border-bottom:1px solid #1e293b; padding-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <div>
+                            <span style="font-weight:700; font-size:0.9rem; color:#f8fafc;">${rankIcon}${m.name}</span>
+                            <span style="font-size:0.7rem; padding:2px 6px; border-radius:4px; margin-left:6px; background:${isBanned ? 'rgba(239,68,68,0.1)' : 'rgba(52,211,153,0.1)'}; color:${isBanned ? '#ef4444' : '#34d399'}; border: 1px solid ${isBanned ? '#ef4444' : '#34d399'};">
+                                ${isBanned ? '🚫 3일휴식' : '✅ 출전가능'}
+                            </span>
+                        </div>
+                        <span style="font-size:0.8rem; font-weight:700; color:${targetDist >= goal ? '#34d399' : '#94a3b8'};">${targetDist.toFixed(1)} / ${goal}km</span>
                     </div>
-                    <span style="font-size:0.8rem; font-weight:700; color:${targetDist >= goal ? '#34d399' : '#94a3b8'};">${targetDist.toFixed(1)} / ${goal}km</span>
-                </div>
-                <div class="progress-bg"><div class="progress-fill" style="width:${prog}%; background:${targetDist >= goal ? '#3b82f6':'#475569'}"></div></div>
-            </div>`;
-        }).join('');
+                    <div class="progress-bg"><div class="progress-fill" style="width:${prog}%; background:${targetDist >= goal ? '#3b82f6':'#475569'}"></div></div>
+                </div>`;
+            }).join('');
+        }
+        
+        // 뷰 토글 버튼 UI 업데이트
+        const btnWeek = document.getElementById('btn-view-week');
+        const btnTotal = document.getElementById('btn-view-total');
+        if(btnWeek && btnTotal) {
+            btnWeek.classList.toggle('active', state.viewMode === 'week');
+            btnTotal.classList.toggle('active', state.viewMode === 'total');
+        }
     }
 
     function deleteMission(missionId) {
@@ -545,7 +608,10 @@
         const assignee = mission.assignees.find(a => a.name === memberName);
         assignee.completed = true; assignee.dist = actualDist;
         const member = state.members.find(m => m.name === memberName);
-        if(member) { member.runs[todayStr] = (member.runs[todayStr] || 0) + actualDist; }
+        if(member) {
+            if(!member.runs) member.runs = {};
+            member.runs[todayStr] = (member.runs[todayStr] || 0) + actualDist; 
+        }
         save();
     }
     function clearMissions() { if(confirm("모든 미션을 지우겠습니까?")) { saveStateForUndo(); state.activeMissions = []; save(); } }
@@ -610,14 +676,12 @@
         if (moveCount === -1) curr = getPrevNode(curr, choice);
         else { for(let i=0; i<moveCount; i++) { curr = getNextNode(curr, choice); if(curr === 20) break; } }
 
-        let caughtText = "";
         if (curr !== 0 && curr !== 20) {
             state.teams.forEach((t, i) => {
                 if (i !== parseInt(teamIdx)) {
                     let caughtPieces = t.pieces.filter(p => p.st === 'active' && p.pos === curr);
                     if (caughtPieces.length > 0) {
                         caughtPieces.forEach(p => { p.st = 'wait'; p.pos = 0; });
-                        caughtText = `\n🔥 대박! ${t.name}의 말을 잡았습니다! (한 번 더 던지세요)`;
                     }
                 }
             });
@@ -625,14 +689,14 @@
 
         movingPieces.forEach(p => { p.pos = curr; p.st = curr === 20 ? 'goal' : 'active'; });
         save();
-        
-        if(teamIdx === 0) { alert(`이동 완료! 상단에 미션이 등록되었습니다.${caughtText}`); tab('page-team', document.getElementById('tab-team')); } 
-        else { alert(`${state.teams[teamIdx].name} 이동 완료!${caughtText}`); tab('page-board', document.getElementById('tab-board')); }
     }
 
-    function resetGame() { if(confirm("초기화 시 복구 불가능합니다. 초기화할까요?")) { localStorage.removeItem('running_yut_v11'); localStorage.removeItem('running_yut_v10'); location.reload(); } }
-
-    load();
+    function resetGame() { 
+        if(confirm("모든 팀원의 데이터와 보드가 초기화됩니다. 정말 진행할까요?")) { 
+            dbRef.set(getDefaultState()); 
+            alert("초기화 완료! 처음 상태로 돌아갔습니다.");
+        } 
+    }
 </script>
 </body>
 </html>
