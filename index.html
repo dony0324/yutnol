@@ -46,6 +46,7 @@
 
         .team-analysis-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
         .team-analysis-card { padding: 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid #334155; position: relative; display: flex; flex-direction: column; gap: 6px; }
+        .team-analysis-card.rank-1 { border-color: #fbbf24; background: rgba(251, 191, 36, 0.05); }
         .roster-btn { position: absolute; top: 12px; right: 12px; background: #334155; color: #e2e8f0; border: none; border-radius: 4px; font-size: 0.65rem; padding: 4px 8px; cursor: pointer; }
 
         .card { background: var(--card); border-radius: 12px; padding: 1.2rem; margin-bottom: 1rem; border: 1px solid #334155; }
@@ -67,13 +68,15 @@
         .hidden { display: none !important; }
         .popup-box { background: var(--card); padding: 20px; border-radius: 16px; width: 85%; max-width: 350px; border: 1px solid #3b82f6; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         .btn-close { background: #334155; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 15px; }
+        
+        select { background: #0f172a; color: white; border: 1px solid #475569; border-radius: 6px; padding: 4px 8px; font-size: 0.75rem; }
     </style>
 </head>
 <body>
 
 <header>
     <div class="header-top">
-        <h1><div class="live-dot"></div> 🏃‍♂️ 러닝 윷놀이 LIVE</h1>
+        <h1><div class="live-dot"></div> 🏃‍♂️ 러닝 윷놀이 관전</h1>
         <span id="header-badge" class="badge-mini">1주차 / D-14</span>
     </div>
     <div id="header-mission-board" class="header-mission-board">
@@ -86,7 +89,7 @@
         <div id="board-container">
             <canvas id="yutBoard" width="400" height="400"></canvas>
         </div>
-        <h3 style="font-size:1rem; font-weight:800; color:#f8fafc; margin-top:20px;">📊 팀별 전력 분석</h3>
+        <h3 style="font-size:1rem; font-weight:800; color:#f8fafc; margin-top:20px;">🏆 실시간 팀별 랭킹 보드</h3>
         <div class="team-analysis-list" id="team-info-grid"></div>
     </div>
 </div>
@@ -94,14 +97,14 @@
 <div id="page-team" class="content-region">
     <div class="card">
         <div class="card-title"><span>🎯 오늘의 미션 배정 현황</span></div>
-        <p style="font-size:0.75rem; color:#94a3b8; margin-bottom:10px;">관리자가 배정한 미션과 주자 현황입니다.</p>
+        <p style="font-size:0.75rem; color:#94a3b8; margin-bottom:10px;">관리자가 배정한 우리팀의 미션과 주자 현황입니다.</p>
         <div id="mission-list-container"></div>
     </div>
 
     <div class="card">
         <div class="card-title">
-            <span>🏆 팀원 상태 및 랭킹</span>
-            <select id="team-filter" onchange="render()" style="width: auto; padding: 4px 8px; margin: 0; font-size: 0.75rem; background: #0f172a; color: white; border: 1px solid #475569; border-radius: 6px;">
+            <span>🏅 팀원 상태 및 랭킹</span>
+            <select id="team-filter" onchange="render()">
                 <option value="1">1팀 윷캔두잇</option><option value="2">2팀 윷알씨</option>
                 <option value="3">3팀 윳쾌상쾌</option><option value="4">4팀 말달리자</option>
             </select>
@@ -129,12 +132,12 @@
 
 <script>
     // =========================================================================
-    // 🔥 Firebase 설정 (관리자와 동일하게 작성!)
+    // 🔥 Firebase 설정
     // =========================================================================
     const firebaseConfig = {
       apiKey: "AIzaSyD6NlShxLLalttbUu3twkADVVsZIzGsz-g",
       authDomain: "urc-yut-nol.firebaseapp.com",
-      databaseURL: "https://urc-yut-nol-default-rtdb.firebaseio.com", // 👈 반드시 실제 DB 주소를 똑같이 넣어주세요!
+      databaseURL: "https://urc-yut-nol-default-rtdb.firebaseio.com", // 👈 반드시 실제 DB 주소를 넣어주세요! (https://...)
       projectId: "urc-yut-nol",
       storageBucket: "urc-yut-nol.firebasestorage.app",
       messagingSenderId: "164372791390",
@@ -142,7 +145,13 @@
     };
     
     firebase.initializeApp(firebaseConfig);
-    const dbRef = firebase.database().ref('urcYutNolState_v13_1'); // 관리자와 완전히 동일한 저장소
+    const dbRef = firebase.database().ref('urcYutNolState_v14'); // 관리자와 동일한 저장소
+
+    const progMap = {
+        0:0, 1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8, 9:9, 10:10,
+        11:11, 12:12, 13:13, 14:14, 15:15, 16:16, 17:17, 18:18, 19:19,
+        21:7, 22:9, 23:12, 24:13, 25:14, 26:11, 27:12, 28:15, 29:18
+    };
 
     function formatDateString(dateObj) {
         let y = dateObj.getFullYear();
@@ -174,7 +183,7 @@
 
     let state = { teams: [], members: [], activeMissions: [], viewMode: 'week' };
 
-    // 오직 "읽기(Read)"만 수행합니다!
+    // 뷰어 모드이므로 오직 데이터 읽기만 수행
     dbRef.on('value', (snapshot) => {
         const data = snapshot.val();
         if(data) { 
@@ -183,6 +192,7 @@
             state.activeMissions.forEach(m => { if(!m.assignees) m.assignees = []; });
             if(!state.members) state.members = [];
             state.members.forEach(m => { if(!m.runs) m.runs = {}; });
+            state.teams.forEach(t => { if(typeof t.score === 'undefined') t.score = 0; });
             
             updateHeader(); 
             render(); 
@@ -287,20 +297,33 @@
             }).join('');
         }
         
-        // 2. 팀 분석 보드
+        // 2. 팀별 실시간 랭킹 보드
+        let sortedTeams = [...state.teams].sort((a, b) => {
+            let aScore = a.score || 0; let bScore = b.score || 0;
+            if (bScore !== aScore) return bScore - aScore; 
+            
+            let aMax = Math.max(0, ...a.pieces.filter(p => p.st === 'active').map(p => progMap[p.pos] || 0));
+            let bMax = Math.max(0, ...b.pieces.filter(p => p.st === 'active').map(p => progMap[p.pos] || 0));
+            return bMax - aMax;
+        });
+
         const teamInfoGrid = document.getElementById('team-info-grid');
         if(teamInfoGrid) {
-            teamInfoGrid.innerHTML = state.teams.map(t => {
+            teamInfoGrid.innerHTML = sortedTeams.map((t, index) => {
                 let active = t.pieces.filter(p => p.st === 'active').length;
-                let goal = t.pieces.filter(p => p.st === 'goal').length;
                 let bannedMembers = state.members.filter(m => m.teamId === t.id && checkBan(m)).map(m => m.name);
                 let bannedText = bannedMembers.length > 0 ? bannedMembers.join(', ') : '없음';
+                
+                let rankIcons = ["🏆 1위", "🥈 2위", "🥉 3위", "🏃 4위"];
+                let cardClass = index === 0 ? "team-analysis-card rank-1" : "team-analysis-card";
+                let scoreColor = index === 0 ? "#fbbf24" : "#34d399";
+                
                 return `
-                <div class="team-analysis-card">
+                <div class="${cardClass}">
                     <button class="roster-btn" onclick="showRoster(${t.id})">명단</button>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <strong style="color:${t.color}; font-size:1.05rem;">${t.id}팀 ${t.name}</strong>
-                        <span style="font-size:0.75rem; color:#94a3b8; font-weight:700;">필드 ${active} / 골인 ${goal}</span>
+                        <strong style="color:${t.color}; font-size:1.05rem;">${rankIcons[index]} <span style="font-size:0.9rem;">(${t.name})</span></strong>
+                        <span style="font-size:0.75rem; color:#94a3b8; font-weight:700;">필드 말 ${active}개 / 스코어 <span style="color:${scoreColor}; font-size:1rem;">${t.score}점</span></span>
                     </div>
                     <div style="font-size:0.8rem; color:#cbd5e1; margin-top:4px;">🎯 최근 윷: <strong style="color:#fff;">${t.lastM || '-'}</strong></div>
                     <div style="font-size:0.8rem; color:#cbd5e1;">🚫 3일휴식: <span style="color:${bannedMembers.length > 0 ? '#ef4444' : '#34d399'}; font-weight:700;">${bannedText}</span></div>
@@ -308,7 +331,7 @@
             }).join('');
         }
 
-        // 3. 미션 배정 탭 (읽기 전용)
+        // 3. 미션 배정 탭 (조작 버튼 완전 제거)
         const missionContainer = document.getElementById('mission-list-container');
         if(missionContainer) {
             if (state.activeMissions.length === 0) {
@@ -321,10 +344,10 @@
                         <div class="mission-title">
                             <span style="color:#e2e8f0; font-size:0.85rem; margin-right:5px;">[${mTeamName}]</span>${m.text}
                         </div>
-                        <div>
+                        <div style="margin-top: 10px;">
                             ${m.assignees.length > 0 
                                 ? m.assignees.map(a => `<span class="assignee-tag ${a.completed ? 'completed' : ''}">${a.name} ${a.completed ? `<span style="font-size:0.7rem;">(${a.dist}km)</span>` : ''}</span>`).join('') 
-                                : '<span style="color:#64748b; font-size:0.8rem;">예측 명단을 배정해주세요.</span>'}
+                                : '<span style="color:#64748b; font-size:0.8rem;">관리자의 배정을 대기 중입니다.</span>'}
                         </div>
                     </div>
                 `}).join('');
