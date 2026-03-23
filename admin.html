@@ -153,7 +153,7 @@
             <option value="1">도 (3km / 2인↑)</option><option value="2">개 (5km / 3인↑)</option><option value="3">걸 (정기런 / 2인↑)</option>
             <option value="4">윷 (8km / 2인↑)</option><option value="5">모 (15km / 1인)</option><option value="-1">빽도 (휴식)</option>
         </select>
-        <button class="btn-update" onclick="attemptMove()">위치 반영 & 미션 기록</button>
+        <button class="btn-update" onclick="attemptMove()">위치 반영 & 윷 기록</button>
     </div>
     
     <div class="card">
@@ -215,7 +215,7 @@
     };
     
     firebase.initializeApp(firebaseConfig);
-    const dbRef = firebase.database().ref('urcYutNolState_v1');
+    const dbRef = firebase.database().ref('urcYutNolState_v13_1');
 
     function formatDateString(dateObj) {
         let y = dateObj.getFullYear();
@@ -278,6 +278,7 @@
 
     let state = getDefaultState();
 
+    // 🚨 v13.2 핵심 수정: 파이어베이스의 '빈 배열 삭제' 방어 로직 
     dbRef.on('value', (snapshot) => {
         const data = snapshot.val();
         if(data) { 
@@ -285,7 +286,14 @@
             if(!state.historyLog) state.historyLog = []; 
             if(!state.futureLog) state.futureLog = []; 
             if(!state.activeMissions) state.activeMissions = [];
+            // 미션 객체 안에 assignees 배열이 날아갔을 경우 복구
+            state.activeMissions.forEach(m => {
+                if(!m.assignees) m.assignees = [];
+            });
             if(!state.members) state = getDefaultState();
+            state.members.forEach(m => {
+                if(!m.runs) m.runs = {};
+            });
         } else {
             dbRef.set(state);
         }
@@ -469,14 +477,15 @@
         } else {
             headerMissionBoard.innerHTML = state.activeMissions.map(m => {
                 const missionTitle = m.text.split('(')[0];
-                const runners = m.assignees.length > 0
-                    ? m.assignees.map(a => `<span class="runner-chip ${a.completed ? 'completed' : ''}">${a.name}</span>`).join('')
+                const assignees = m.assignees || [];
+                const runners = assignees.length > 0
+                    ? assignees.map(a => `<span class="runner-chip ${a.completed ? 'completed' : ''}">${a.name}</span>`).join('')
                     : '<span class="runner-chip empty">배정 대기중</span>';
                 return `<div class="header-mission-item"><span class="mission-badge">${missionTitle}</span><div class="runner-chips">${runners}</div></div>`;
             }).join('');
         }
         
-        // 2. 팀 분석 보드 (모든 팀의 윷 및 상태 표시)
+        // 2. 팀 분석 보드
         const teamInfoGrid = document.getElementById('team-info-grid');
         if(teamInfoGrid) {
             teamInfoGrid.innerHTML = state.teams.map(t => {
@@ -497,14 +506,16 @@
             }).join('');
         }
 
-        // 3. 미션 배정 탭 (우리팀만 보여줌)
+        // 3. 미션 배정 탭
         const team1Members = state.members.filter(m => m.teamId === 1);
         const missionContainer = document.getElementById('mission-list-container');
         if(missionContainer) {
             if (state.activeMissions.length === 0) {
                 missionContainer.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b; font-size:0.85rem; border:1px dashed #334155; border-radius:8px;">현재 배정할 미션이 없습니다.</div>';
             } else {
-                missionContainer.innerHTML = state.activeMissions.map(m => `
+                missionContainer.innerHTML = state.activeMissions.map(m => {
+                    const assignees = m.assignees || [];
+                    return `
                     <div class="mission-box">
                         <div class="mission-title">
                             <div>${m.text}</div>
@@ -515,8 +526,8 @@
                             <button class="btn-assign" onclick="assignMember(${m.id})">배정</button>
                         </div>
                         <div>
-                            ${m.assignees.length > 0 
-                                ? m.assignees.map(a => `
+                            ${assignees.length > 0 
+                                ? assignees.map(a => `
                                     <span class="assignee-tag ${a.completed ? 'completed' : ''}">
                                         ${a.name} ${a.completed ? `<span style="font-size:0.7rem;">(${a.dist}km)</span>` : ''}
                                         ${!a.completed ? `<button class="btn-ok" onclick="completeMission(${m.id}, '${a.name}', ${m.defaultDist})">OK</button>` : ''}
@@ -525,7 +536,7 @@
                                 : '<span style="color:#64748b; font-size:0.8rem;">예측 명단을 배정해주세요.</span>'}
                         </div>
                     </div>
-                `).join('');
+                `}).join('');
             }
         }
 
@@ -580,19 +591,26 @@
     function assignMember(missionId) {
         const name = document.getElementById(`assign-sel-${missionId}`).value;
         const mission = state.activeMissions.find(m => m.id === missionId);
-        if(mission && !mission.assignees.some(a => a.name === name)) { saveStateForUndo(); mission.assignees.push({ name: name, completed: false, dist: 0 }); save(); }
+        if(mission) { 
+            if(!mission.assignees) mission.assignees = [];
+            if(!mission.assignees.some(a => a.name === name)) {
+                saveStateForUndo(); mission.assignees.push({ name: name, completed: false, dist: 0 }); save(); 
+            }
+        }
     }
     function removeAssignee(missionId, name) {
         saveStateForUndo(); const mission = state.activeMissions.find(m => m.id === missionId);
-        if(mission) { mission.assignees = mission.assignees.filter(a => a.name !== name); save(); }
+        if(mission && mission.assignees) { mission.assignees = mission.assignees.filter(a => a.name !== name); save(); }
     }
     function completeMission(missionId, memberName, defaultDist) {
         let actualDist = prompt(`${memberName}님이 오늘(${todayStr}) 실제로 달린 거리를 입력하세요 (km):`, defaultDist || 5);
         if(actualDist === null) return; actualDist = parseFloat(actualDist); if(isNaN(actualDist) || actualDist <= 0) return alert("올바른 거리를 입력해주세요.");
         saveStateForUndo();
         const mission = state.activeMissions.find(m => m.id === missionId);
-        const assignee = mission.assignees.find(a => a.name === memberName);
-        assignee.completed = true; assignee.dist = actualDist;
+        if(mission && mission.assignees) {
+            const assignee = mission.assignees.find(a => a.name === memberName);
+            if(assignee) { assignee.completed = true; assignee.dist = actualDist; }
+        }
         const member = state.members.find(m => m.name === memberName);
         if(member) {
             if(!member.runs) member.runs = {};
@@ -603,7 +621,7 @@
     function clearMissions() { if(confirm("모든 미션을 지우겠습니까?")) { saveStateForUndo(); state.activeMissions = []; save(); } }
     
     function addCustomMission() {
-        const text = prompt("수동으로 추가할 우리팀 미션을 입력하세요:");
+        const text = prompt("수동으로 추가할 우리 팀 미션을 입력하세요:");
         if(text) { 
             saveStateForUndo(); 
             state.activeMissions.push({ id: Date.now(), teamId: 1, teamName: "1팀", text: text, assignees: [], defaultDist: 5 }); 
@@ -632,12 +650,10 @@
         saveStateForUndo();
         let team = state.teams[teamIdx];
         
-        // v13.0: 모든 팀의 최근 윷/미션 기록 저장
         let detailText = moveCount === 1 ? "(3km/2인↑)" : (moveCount === 2 ? "(5km/3인↑)" : (moveCount === 3 ? "(정기런/2인↑)" : (moveCount === 4 ? "(8km/2인↑)" : (moveCount === 5 ? "(15km/1인)" : ""))));
         let fullMissionText = moveCount === -1 ? "빽도 (휴식)" : `${missionDict[moveCount]} ${detailText}`;
         team.lastM = moveCount === 0 ? "-" : fullMissionText;
 
-        // v13.0: 1팀(우리팀)만 미션 배정 탭에 등록
         if (teamIdx === 0 && moveCount !== 0 && moveCount !== -1) {
             state.activeMissions.push({ 
                 id: Date.now(), 
@@ -702,13 +718,6 @@
             alert(`${state.teams[teamIdx].name} 이동 완료! 전력 분석에 윷 결과가 업데이트되었습니다.${caughtText}`); 
             tab('page-board', document.getElementById('tab-board')); 
         }
-    }
-
-    function resetGame() { 
-        if(confirm("모든 팀원의 데이터와 보드가 초기화됩니다. 정말 진행할까요?")) { 
-            dbRef.set(getDefaultState()); 
-            alert("초기화 완료! 처음 상태로 돌아갔습니다.");
-        } 
     }
 </script>
 </body>
