@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏃‍♂️ RUNNING YUT-NOLRI (VIEWER)</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb; --bg: #0f172a; --card: #1e293b; --text: #e2e8f0;
+            --team-1: #ef4444; --team-2: #3b82f6; --team-3: #eab308; --team-4: #22c55e;
+            --success: #34d399;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: var(--text); padding-bottom: 70px; }
+        
+        header { background: var(--card); padding: 1rem 1rem 0.5rem 1rem; box-shadow: 0 4px 10px rgba(0,0,0,0.5); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #334155; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        h1 { font-size: 1.1rem; font-weight: 800; color: #fff; margin: 0; display:flex; align-items:center; gap:6px;}
+        .live-dot { width:8px; height:8px; background:#34d399; border-radius:50%; box-shadow: 0 0 8px #34d399; animation: blink 2s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .badge-mini { font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: rgba(59,130,246,0.1); color: #60a5fa; border: 1px solid #3b82f6; }
+        
+        .header-mission-board { background: #0f172a; border-radius: 8px; padding: 8px 10px; border: 1px solid #334155; max-height: 120px; overflow-y: auto; }
+        .empty-mission { text-align: center; color: #64748b; font-size: 0.75rem; padding: 5px 0; }
+        .header-mission-item { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; border-bottom: 1px dashed #1e293b; padding-bottom: 6px; }
+        .header-mission-item:last-child { margin-bottom: 0; border-bottom: none; padding-bottom: 0; }
+        .mission-badge { background: #1e293b; color: #60a5fa; font-size: 0.7rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; white-space: nowrap; border: 1px solid #334155;}
+        .runner-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+        .runner-chip { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: #334155; color: #e2e8f0; }
+        .runner-chip.empty { background: transparent; border: 1px solid #475569; color: #94a3b8; }
+        .runner-chip.completed { background: rgba(52,211,153,0.15); color: var(--success); text-decoration: line-through; border: 1px solid var(--success); }
+
+        nav { position: fixed; bottom: 0; width: 100%; background: var(--card); display: flex; justify-content: space-around; padding: 8px 4px; box-shadow: 0 -2px 10px rgba(0,0,0,0.5); z-index: 100; border-top: 1px solid #334155; }
+        .nav-btn { border: none; background: none; font-size: 0.8rem; font-weight: 700; color: #94a3b8; cursor: pointer; flex: 1; padding: 12px 2px; border-radius: 8px; transition: 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .nav-btn.active { color: #60a5fa; background: rgba(59,130,246,0.1); }
+
+        .content-region { display: none; padding: 1rem; max-width: 600px; margin: 0 auto; }
+        .content-region.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .board-card { border-radius: 16px; padding: 1rem; margin-bottom: 1rem; position: relative; }
+        #board-container { position: relative; width: 100%; aspect-ratio: 1/1; }
+        canvas { width: 100%; height: 100%; }
+
+        .team-analysis-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+        .team-analysis-card { padding: 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid #334155; position: relative; display: flex; flex-direction: column; gap: 6px; }
+        .roster-btn { position: absolute; top: 12px; right: 12px; background: #334155; color: #e2e8f0; border: none; border-radius: 4px; font-size: 0.65rem; padding: 4px 8px; cursor: pointer; }
+
+        .card { background: var(--card); border-radius: 12px; padding: 1.2rem; margin-bottom: 1rem; border: 1px solid #334155; }
+        .card-title { font-weight: 700; margin-bottom: 12px; font-size: 1rem; color: #f8fafc; display: flex; justify-content: space-between; align-items: center; }
+
+        .progress-bg { width: 100%; height: 8px; background: #334155; border-radius: 4px; overflow: hidden; margin-top: 5px; }
+        .progress-fill { height: 100%; transition: width 0.5s; }
+        
+        .mission-box { background: rgba(255,255,255,0.03); border: 1px solid #475569; padding: 12px; border-radius: 8px; margin-bottom: 10px; }
+        .mission-title { font-weight: 800; color: #e2e8f0; margin-bottom: 8px; font-size: 0.9rem; }
+        .assignee-tag { background: #1e293b; border: 1px solid #475569; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; color: #e2e8f0; margin-right: 5px; margin-bottom: 5px; display: inline-flex; align-items: center; gap: 4px; }
+        .assignee-tag.completed { border-color: var(--success); background: rgba(52,211,153,0.1); color: var(--success); text-decoration: line-through; }
+
+        .view-toggle { display: flex; background: #0f172a; border-radius: 8px; padding: 4px; margin-bottom: 15px; border: 1px solid #334155; }
+        .view-toggle button { flex: 1; padding: 8px; border: none; background: transparent; color: #94a3b8; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 0.85rem; }
+        .view-toggle button.active { background: #3b82f6; color: white; }
+
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(4px); }
+        .hidden { display: none !important; }
+        .popup-box { background: var(--card); padding: 20px; border-radius: 16px; width: 85%; max-width: 350px; border: 1px solid #3b82f6; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .btn-close { background: #334155; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-top">
+        <h1><div class="live-dot"></div> 🏃‍♂️ 러닝 윷놀이 LIVE</h1>
+        <span id="header-badge" class="badge-mini">1주차 / D-14</span>
+    </div>
+    <div id="header-mission-board" class="header-mission-board">
+        <div class="empty-mission">데이터를 불러오는 중입니다...</div>
+    </div>
+</header>
+
+<div id="page-board" class="content-region active">
+    <div class="card board-card">
+        <div id="board-container">
+            <canvas id="yutBoard" width="400" height="400"></canvas>
+        </div>
+        <h3 style="font-size:1rem; font-weight:800; color:#f8fafc; margin-top:20px;">📊 팀별 전력 분석</h3>
+        <div class="team-analysis-list" id="team-info-grid"></div>
+    </div>
+</div>
+
+<div id="page-team" class="content-region">
+    <div class="card">
+        <div class="card-title"><span>🎯 오늘의 미션 배정 현황</span></div>
+        <p style="font-size:0.75rem; color:#94a3b8; margin-bottom:10px;">관리자가 배정한 미션과 주자 현황입니다.</p>
+        <div id="mission-list-container"></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">
+            <span>🏆 팀원 상태 및 랭킹</span>
+            <select id="team-filter" onchange="render()" style="width: auto; padding: 4px 8px; margin: 0; font-size: 0.75rem; background: #0f172a; color: white; border: 1px solid #475569; border-radius: 6px;">
+                <option value="1">1팀 윷캔두잇</option><option value="2">2팀 윷알씨</option>
+                <option value="3">3팀 윳쾌상쾌</option><option value="4">4팀 말달리자</option>
+            </select>
+        </div>
+        <div class="view-toggle">
+            <button id="btn-view-week" class="active" onclick="setViewMode('week')">이번 주 기록</button>
+            <button id="btn-view-total" onclick="setViewMode('total')">전체 누적 기록</button>
+        </div>
+        <div id="combined-team-status"></div>
+    </div>
+</div>
+
+<div id="roster-modal" class="overlay hidden" onclick="this.classList.add('hidden')">
+    <div class="popup-box" onclick="event.stopPropagation()">
+        <h3 id="roster-modal-title" style="color: white; margin-bottom: 15px;">팀 명단</h3>
+        <div id="roster-modal-content" style="font-size: 0.9rem; color: #cbd5e1; line-height: 1.6; text-align: left; background: #0f172a; padding: 15px; border-radius: 8px;"></div>
+        <button class="btn-close" onclick="document.getElementById('roster-modal').classList.add('hidden')">닫기</button>
+    </div>
+</div>
+
+<nav>
+    <button class="nav-btn active" onclick="tab('page-board', this)"><span style="font-size:1.4rem;">📍</span>보드 관전</button>
+    <button class="nav-btn" onclick="tab('page-team', this)"><span style="font-size:1.4rem;">🏆</span>현황 및 미션</button>
+</nav>
+
+<script>
+    // =========================================================================
+    // 🔥 Firebase 설정 (관리자와 동일하게 작성!)
+    // =========================================================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyD6NlShxLLalttbUu3twkADVVsZIzGsz-g",
+      authDomain: "urc-yut-nol.firebaseapp.com",
+      databaseURL: "https://urc-yut-nol-default-rtdb.firebaseio.com", // 👈 반드시 실제 DB 주소를 똑같이 넣어주세요!
+      projectId: "urc-yut-nol",
+      storageBucket: "urc-yut-nol.firebasestorage.app",
+      messagingSenderId: "164372791390",
+      appId: "1:164372791390:web:3f29653b6f182b3a37f4cf"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const dbRef = firebase.database().ref('urcYutNolState_v13_1'); // 관리자와 완전히 동일한 저장소
+
+    function formatDateString(dateObj) {
+        let y = dateObj.getFullYear();
+        let m = String(dateObj.getMonth() + 1).padStart(2, '0');
+        let d = String(dateObj.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+    
+    const startDate = new Date('2026-03-23');
+    const endDate = new Date('2026-04-05');
+    const week2Start = new Date('2026-03-30');
+    const today = new Date(); 
+    
+    const dDay = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+    const currentWeek = today < week2Start ? 1 : 2;
+
+    const pts = {
+        0: {x:350,y:350, name:"출발"}, 1: {x:350,y:290}, 2: {x:350,y:230}, 3: {x:350,y:170}, 4: {x:350,y:110},
+        5: {x:350,y:50, name:"우상코너"}, 6: {x:290,y:50}, 7: {x:230,y:50}, 8: {x:170,y:50}, 9: {x:110,y:50},
+        10: {x:50,y:50, name:"좌상코너"}, 11: {x:50,y:110}, 12: {x:50,y:170}, 13: {x:50,y:230}, 14: {x:50,y:290},
+        15: {x:50,y:350, name:"좌하코너"}, 16: {x:110,y:350}, 17: {x:170,y:350}, 18: {x:230,y:350}, 19: {x:290,y:350},
+        20: {x:350,y:350, name:"골인"}, 21: {x:300,y:100}, 22: {x:250,y:150}, 23: {x:200,y:200, name:"중앙"}, 24: {x:150,y:250}, 25: {x:100,y:300},
+        26: {x:100,y:100}, 27: {x:150,y:150}, 28: {x:250,y:250}, 29: {x:300,y:300}
+    };
+
+    const rosterData = {
+        1: { name: "윷캔두잇" }, 2: { name: "윷알씨" }, 3: { name: "윳쾌상쾌" }, 4: { name: "말달리자" }
+    };
+
+    let state = { teams: [], members: [], activeMissions: [], viewMode: 'week' };
+
+    // 오직 "읽기(Read)"만 수행합니다!
+    dbRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if(data) { 
+            state = data; 
+            if(!state.activeMissions) state.activeMissions = [];
+            state.activeMissions.forEach(m => { if(!m.assignees) m.assignees = []; });
+            if(!state.members) state.members = [];
+            state.members.forEach(m => { if(!m.runs) m.runs = {}; });
+            
+            updateHeader(); 
+            render(); 
+        }
+    });
+
+    function updateHeader() { document.getElementById('header-badge').innerText = `${currentWeek}주차 / D-${dDay > 0 ? dDay : 'Day'}`; }
+
+    function tab(id, btnElement) {
+        document.querySelectorAll('.content-region').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        if(btnElement) btnElement.classList.add('active');
+        if(id === 'page-board') renderCanvas();
+    }
+
+    function setViewMode(mode) { 
+        state.viewMode = mode; 
+        document.getElementById('btn-view-week').classList.toggle('active', mode === 'week');
+        document.getElementById('btn-view-total').classList.toggle('active', mode === 'total');
+        render(); 
+    }
+
+    function showRoster(teamId) {
+        let tData = rosterData[teamId];
+        let members = state.members.filter(m => m.teamId === teamId).map(m => m.name);
+        document.getElementById('roster-modal-title').innerText = `${teamId}팀 (${tData.name})`;
+        let listHTML = members.map(m => `<span style="display:inline-block; width:45%; margin-bottom:8px;">🏃 ${m}</span>`).join('');
+        document.getElementById('roster-modal-content').innerHTML = listHTML;
+        document.getElementById('roster-modal').classList.remove('hidden');
+    }
+
+    function checkBan(member) {
+        if(!member.runs) return false;
+        let y1 = new Date(today); y1.setDate(y1.getDate() - 1);
+        let y2 = new Date(today); y2.setDate(y2.getDate() - 2);
+        let d1 = formatDateString(y1); let d2 = formatDateString(y2);
+        return (member.runs[d1] > 0 && member.runs[d2] > 0);
+    }
+
+    function calcDist(member, week) {
+        if(!member.runs) return 0;
+        let total = 0;
+        for(let dStr in member.runs) {
+            let dObj = new Date(dStr);
+            let w = dObj < week2Start ? 1 : 2;
+            if (week === 'total' || week === w) {
+                total += (member.runs[dStr] === 0.1 ? 0 : member.runs[dStr]);
+            }
+        }
+        return total;
+    }
+
+    function renderCanvas() {
+        const cvs = document.getElementById('yutBoard');
+        if(!cvs || state.teams.length === 0) return;
+        const ctx = cvs.getContext('2d');
+        ctx.clearRect(0,0,400,400);
+
+        ctx.strokeStyle = "#334155"; ctx.lineWidth = 1.5;
+        ctx.strokeRect(50, 50, 300, 300);
+        ctx.beginPath(); ctx.moveTo(50, 50); ctx.lineTo(350, 350); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(350, 50); ctx.lineTo(50, 350); ctx.stroke();
+
+        for(let i=0; i<=29; i++) {
+            if(i === 20) continue;
+            let p = pts[i]; let isCorner = [0,5,10,15,23].includes(i);
+            ctx.beginPath(); ctx.arc(p.x, p.y, isCorner ? 12 : 6, 0, Math.PI * 2);
+            ctx.fillStyle = isCorner ? "#1e293b" : "#334155"; ctx.fill();
+            ctx.strokeStyle = isCorner ? "#60a5fa" : "#475569"; ctx.lineWidth = isCorner ? 2 : 1; ctx.stroke();
+            if(p.name && isCorner) { ctx.fillStyle = "#94a3b8"; ctx.font = "bold 10px sans-serif"; ctx.fillText(p.name, p.x-15, p.y-18); }
+        }
+
+        let spots = {};
+        state.teams.forEach(t => { t.pieces.filter(p => p.st === 'active').forEach(p => { if(!spots[p.pos]) spots[p.pos] = []; spots[p.pos].push(t); }); });
+
+        for (let pos in spots) {
+            let count = spots[pos].length; let team = spots[pos][0];
+            ctx.beginPath(); ctx.arc(pts[pos].x, pts[pos].y, 11, 0, 7);
+            ctx.fillStyle = team.color; ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = "#fff"; ctx.font = "bold 11px sans-serif";
+            ctx.fillText(count > 1 ? `x${count}` : team.id, pts[pos].x - (count>1?6:3), pts[pos].y + 4);
+        }
+    }
+
+    function render() {
+        if(state.teams.length === 0) return;
+        renderCanvas();
+        
+        // 1. 헤더 미션 보드 (읽기 전용)
+        const headerMissionBoard = document.getElementById('header-mission-board');
+        if (state.activeMissions.length === 0) {
+            headerMissionBoard.innerHTML = '<div class="empty-mission">오늘 진행할 미션이 없습니다.</div>';
+        } else {
+            headerMissionBoard.innerHTML = state.activeMissions.map(m => {
+                const missionTitle = m.text.split('(')[0];
+                const tName = m.teamName ? m.teamName : `${m.teamId}팀`;
+                const runners = m.assignees.length > 0
+                    ? m.assignees.map(a => `<span class="runner-chip ${a.completed ? 'completed' : ''}">${a.name}</span>`).join('')
+                    : '<span class="runner-chip empty">배정 대기중</span>';
+                return `<div class="header-mission-item"><span class="mission-badge">[${tName}] ${missionTitle}</span><div class="runner-chips">${runners}</div></div>`;
+            }).join('');
+        }
+        
+        // 2. 팀 분석 보드
+        const teamInfoGrid = document.getElementById('team-info-grid');
+        if(teamInfoGrid) {
+            teamInfoGrid.innerHTML = state.teams.map(t => {
+                let active = t.pieces.filter(p => p.st === 'active').length;
+                let goal = t.pieces.filter(p => p.st === 'goal').length;
+                let bannedMembers = state.members.filter(m => m.teamId === t.id && checkBan(m)).map(m => m.name);
+                let bannedText = bannedMembers.length > 0 ? bannedMembers.join(', ') : '없음';
+                return `
+                <div class="team-analysis-card">
+                    <button class="roster-btn" onclick="showRoster(${t.id})">명단</button>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <strong style="color:${t.color}; font-size:1.05rem;">${t.id}팀 ${t.name}</strong>
+                        <span style="font-size:0.75rem; color:#94a3b8; font-weight:700;">필드 ${active} / 골인 ${goal}</span>
+                    </div>
+                    <div style="font-size:0.8rem; color:#cbd5e1; margin-top:4px;">🎯 최근 윷: <strong style="color:#fff;">${t.lastM || '-'}</strong></div>
+                    <div style="font-size:0.8rem; color:#cbd5e1;">🚫 3일휴식: <span style="color:${bannedMembers.length > 0 ? '#ef4444' : '#34d399'}; font-weight:700;">${bannedText}</span></div>
+                </div>`;
+            }).join('');
+        }
+
+        // 3. 미션 배정 탭 (읽기 전용)
+        const missionContainer = document.getElementById('mission-list-container');
+        if(missionContainer) {
+            if (state.activeMissions.length === 0) {
+                missionContainer.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b; font-size:0.85rem; border:1px dashed #334155; border-radius:8px;">현재 등록된 미션이 없습니다.</div>';
+            } else {
+                missionContainer.innerHTML = state.activeMissions.map(m => {
+                    const mTeamName = m.teamName || "1팀";
+                    return `
+                    <div class="mission-box">
+                        <div class="mission-title">
+                            <span style="color:#e2e8f0; font-size:0.85rem; margin-right:5px;">[${mTeamName}]</span>${m.text}
+                        </div>
+                        <div>
+                            ${m.assignees.length > 0 
+                                ? m.assignees.map(a => `<span class="assignee-tag ${a.completed ? 'completed' : ''}">${a.name} ${a.completed ? `<span style="font-size:0.7rem;">(${a.dist}km)</span>` : ''}</span>`).join('') 
+                                : '<span style="color:#64748b; font-size:0.8rem;">예측 명단을 배정해주세요.</span>'}
+                        </div>
+                    </div>
+                `}).join('');
+            }
+        }
+
+        // 4. 팀원 마일리지 현황
+        const filterTeamSel = document.getElementById('team-filter');
+        if(filterTeamSel) {
+            const filterTeamId = parseInt(filterTeamSel.value);
+            let filteredMembers = state.members.filter(m => m.teamId === filterTeamId);
+            
+            filteredMembers.sort((a, b) => {
+                return calcDist(b, state.viewMode === 'week' ? currentWeek : 'total') - calcDist(a, state.viewMode === 'week' ? currentWeek : 'total');
+            });
+            
+            document.getElementById('combined-team-status').innerHTML = filteredMembers.map((m, index) => {
+                const isBanned = checkBan(m);
+                const targetDist = calcDist(m, state.viewMode === 'week' ? currentWeek : 'total');
+                const goal = state.viewMode === 'week' ? 10 : 20; 
+                const prog = Math.min(100, (targetDist / goal) * 100);
+                
+                let rankIcon = "";
+                if (targetDist > 0) {
+                    if (index === 0) rankIcon = "🥇 "; else if (index === 1) rankIcon = "🥈 "; else if (index === 2) rankIcon = "🥉 ";
+                }
+                
+                return `
+                <div style="margin-bottom:12px; border-bottom:1px solid #1e293b; padding-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <div>
+                            <span style="font-weight:700; font-size:0.9rem; color:#f8fafc;">${rankIcon}${m.name}</span>
+                            <span style="font-size:0.7rem; padding:2px 6px; border-radius:4px; margin-left:6px; background:${isBanned ? 'rgba(239,68,68,0.1)' : 'rgba(52,211,153,0.1)'}; color:${isBanned ? '#ef4444' : '#34d399'}; border: 1px solid ${isBanned ? '#ef4444' : '#34d399'};">
+                                ${isBanned ? '🚫 3일휴식' : '✅ 출전가능'}
+                            </span>
+                        </div>
+                        <span style="font-size:0.8rem; font-weight:700; color:${targetDist >= goal ? '#34d399' : '#94a3b8'};">${targetDist.toFixed(1)} / ${goal}km</span>
+                    </div>
+                    <div class="progress-bg"><div class="progress-fill" style="width:${prog}%; background:${targetDist >= goal ? '#3b82f6':'#475569'}"></div></div>
+                </div>`;
+            }).join('');
+        }
+    }
+</script>
+</body>
+</html>
