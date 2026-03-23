@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏃‍♂️ RUNNING YUT-NOLRI - 팀 전략판</title>
+    <style>
+        :root {
+            --primary: #2563eb; --bg: #f1f5f9; --card: #ffffff; --text: #1e293b;
+            --team-a: #ef4444; --team-b: #3b82f6; --team-c: #eab308; --team-d: #22c55e;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Pretendard', -apple-system, sans-serif; background: var(--bg); color: var(--text); padding-bottom: 60px; }
+        
+        /* 헤더 & 내비게이션 */
+        header { background: var(--card); padding: 1rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); sticky; top: 0; z-index: 100; }
+        h1 { font-size: 1.25rem; font-weight: 800; }
+        .date-info { font-size: 0.8rem; color: #64748b; margin-top: 4px; }
+        
+        nav { position: fixed; bottom: 0; width: 100%; background: var(--card); display: flex; justify-content: space-around; padding: 10px; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 100; }
+        .nav-btn { border: none; background: none; font-size: 0.9rem; font-weight: 600; color: #64748b; cursor: pointer; padding: 5px 10px; border-radius: 8px; }
+        .nav-btn.active { color: var(--primary); background: #eff6ff; }
+
+        /* 메인 컨텐츠 리전 */
+        .content-region { display: none; padding: 1rem; max-width: 800px; margin: 0 auto; }
+        .content-region.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* 윷놀이 판 (Canvas 영역) */
+        .board-container { background: var(--card); border-radius: 16px; padding: 10px; text-align: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 1rem; }
+        #yutBoard { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 100 100"><rect width="100" height="100" fill="none" stroke="%23e2e8f0" stroke-width="0.5"/><circle cx="10" cy="10" r="2" fill="%23cbd5e1"/><circle cx="90" cy="10" r="2" fill="%23cbd5e1"/><circle cx="90" cy="90" r="2" fill="%23cbd5e1"/><circle cx="10" cy="90" r="2" fill="%23cbd5e1"/><circle cx="50" cy="50" r="2" fill="%23cbd5e1"/></svg>'); background-size: cover; border-radius: 8px; width: 100%; max-width: 400px; height: auto; aspect-ratio: 1/1; }
+        .team-legend { display: flex; justify-content: center; gap: 10px; margin-top: 10px; font-size: 0.8rem; }
+        .dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+        /* 카드 스타일 */
+        .card { background: var(--card); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .card-header { font-weight: 700; font-size: 1rem; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;}
+        
+        /* 팀원 현황 테이블 */
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { text-align: left; color: #64748b; padding-bottom: 8px; }
+        td { padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+        .status-badge { padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        .can-run { background: #dcfce7; color: #166534; }
+        .must-rest { background: #fee2e2; color: #991b1b; }
+        .st-rest { color: #94a3b8; text-decoration: line-through; }
+        
+        /* 입력 폼 */
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; color: #475569; }
+        select, input { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; }
+        .btn-submit { width: 100%; padding: 12px; border: none; border-radius: 8px; background: var(--primary); color: white; font-weight: 700; cursor: pointer; margin-top: 10px; }
+        
+        @media (min-width: 600px) {
+            h1 { font-size: 1.5rem; }
+            .board-container { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🏃‍♂️ RUNNING YUT-NOLRI</h1>
+    <div class="date-info">챌린지 기간: 26.03.23 ~ 04.05 (2주) | <span id="current-date"></span></div>
+</header>
+
+<nav>
+    <button class="nav-btn active" onclick="showPage('page-board')">📍 메인 보드</button>
+    <button class="nav-btn" onclick="showPage('page-team')">🏃 팀원 관리</button>
+    <button class="nav-btn" onclick="showPage('page-admin')">⚙️ 관리자</button>
+</nav>
+
+<div id="page-board" class="content-region active">
+    <div class="board-container">
+        <canvas id="yutBoard" width="400" height="400"></canvas>
+        <div class="team-legend">
+            <div><span class="dot" style="background:var(--team-a)"></span>우리팀</div>
+            <div><span class="dot" style="background:var(--team-b)"></span>B팀</div>
+            <div><span class="dot" style="background:var(--team-c)"></span>C팀</div>
+            <div><span class="dot" style="background:var(--team-d)"></span>D팀</div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">🔊 확정 미션 (23:00)</div>
+        <p style="font-size: 0.9rem; color: #475569;">어젯밤 확정된 미션입니다. 오늘 밤 22:50까지 인증하세요!</p>
+        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-top: 10px; border-left: 4px solid var(--primary);">
+            <div style="font-size: 1.1rem; font-weight: 700; color: var(--primary);" id="mission-title">미션 대기 중</div>
+            <div style="font-size: 0.85rem; margin-top: 4px;" id="mission-desc">관리자가 어제 결과를 입력해주세요.</div>
+        </div>
+    </div>
+</div>
+
+<div id="page-team" class="content-region">
+    <div class="card">
+        <div class="card-header">🚫 3일 연속 러닝 금지 체크</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>이름</th>
+                    <th>어제(일)</th>
+                    <th>오늘(월)</th>
+                    <th>상태</th>
+                </tr>
+            </thead>
+            <tbody id="roster-table-body">
+                </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <div class="card-header">📉 주간 마일리지 (최소 10km)</div>
+        <div id="mileage-list">
+            </div>
+    </div>
+</div>
+
+<div id="page-admin" class="content-region">
+    <div class="card">
+        <div class="card-header">⚙️ 어제 윷 결과 업데이트 (23:00)</div>
+        <div class="form-group">
+            <label>1. 나온 윷 결과</label>
+            <select id="yut-result">
+                <option value="1">도 (1칸 - 3km TT)</option>
+                <option value="2">개 (2칸 - 5km 러닝)</option>
+                <option value="3">걸 (3칸 - 정기런)</option>
+                <option value="4">윷 (4칸 - 8km 러닝 + 한 번 더)</option>
+                <option value="5">모 (5칸 - 15km 러닝 + 한 번 더)</option>
+                <option value="-1">빽도 (-1칸 + 전체 휴식)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>2. 잡기/업기 발생 여부</label>
+            <select id="special-rule">
+                <option value="none">없음</option>
+                <option value="catch">상대 말을 잡았다! (+한 번 더)</option>
+                <option value="carry_2">말 2개 업기 (+추가 3인 동반주)</option>
+                <option value="carry_3">말 3개 업기 (+추가 5인 동반주 - 위험!)</option>
+            </select>
+        </div>
+        <button class="btn-submit" onclick="updateGameState()">게임 상태 업데이트 (저장)</button>
+    </div>
+    <p style="font-size: 0.75rem; color: #94a3b8; text-align: center;">* 데이터는 브라우저(LocalStorage)에 저장됩니다. 팀원간 공유를 위해서는 추후 Google Sheets 연동이 필요합니다.</p>
+</div>
+
+<script>
+    // 0. 초기 세팅 및 날짜
+    document.getElementById('current-date').innerText = new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
+
+    // 1. 윷놀이 판 좌표 데이터 (정사각형 400x400 기준 간략화)
+    const boardPoints = [
+        {id: 0, x: 350, y: 350, name: "출발"}, // 우하단
+        {id: 1, x: 350, y: 280}, {id: 2, x: 350, y: 210}, {id: 3, x: 350, y: 140}, {id: 4, x: 350, y: 70},
+        {id: 5, x: 350, y: 50, name: "코너1"}, // 우상단
+        {id: 6, x: 280, y: 50}, {id: 7, x: 210, y: 50}, {id: 8, x: 140, y: 50}, {id: 9, x: 70, y: 50},
+        {id: 10, x: 50, y: 50, name: "코너2"}, // 좌상단
+        {id: 11, x: 50, y: 140}, {id: 12, x: 50, y: 210}, {id: 13, x: 50, y: 280}, {id: 14, x: 50, y: 350},
+        {id: 15, x: 50, y: 350, name: "코너3"}, // 좌하단
+        {id: 16, x: 140, y: 350}, {id: 17, x: 210, y: 350}, {id: 18, x: 280, y: 350},
+        {id: 20, x: 200, y: 200, name: "중앙"} // 대각선은 생략
+    ];
+
+    // 2. 미션 데이터
+    const missionData = {
+        "1": { title: "도(1칸): 3km TT", desc: "2인 이상 팀원 필요. 최대한 빠르게!" },
+        "2": { title: "개(2칸): 5km 러닝", desc: "3인 이상 팀원 필요. 초보조 투입 적기." },
+        "3": { title: "걸(3칸): 정기런 참석", desc: "2인 이상 팀원 필요. 번개런 개최 권장." },
+        "4": { title: "윷(4칸): 8km 러닝", desc: "2인 이상 필요. [추가 던지기] 획득!" },
+        "5": { title: "모(5칸): 15km 러닝", desc: "에이스 1인 단독 미션. [추가 던지기] 획득!" },
+        "-1": { title: "빽도(-1칸): 후퇴", desc: "뒤로 1칸 이동 및 팀 전체 강제 휴식." }
+    };
+
+    // 3. 더미 데이터 (원래는 DB나 Sheets에서 가져옴)
+    let gameState = {
+        myTeamPos: 0,
+        otherTeams: [ {id: 'B', pos: 3}, {id: 'C', pos: 7}, {id: 'D', pos: 12} ],
+        lastMission: null,
+        // 우리 팀원 10명 상태 (이름, 7일간 러닝기록, 주간 마일리지)
+        members: [
+            { id: 1, name: "팀장(나)", history: [false,false,true,true], mileage: 15.5 },
+            { id: 2, name: "에이스A", history: [true,true,false,false], mileage: 22.0 },
+            { id: 3, name: "러너B", history: [false,true,true,false], mileage: 8.0 },
+            { id: 4, name: "러너C", history: [false,false,false,false], mileage: 3.0 },
+            { id: 5, name: "러너D", history: [false,true,false,true], mileage: 10.0 },
+            { id: 6, name: "뉴비E", history: [false,false,false,false], mileage: 0.0 },
+            { id: 7, name: "철인F", history: [true,true,false,true], mileage: 25.0 },
+            { id: 8, name: "러너G", history: [false,true,false,false], mileage: 5.0 },
+            { id: 9, name: "러너H", history: [false,false,true,false], mileage: 6.0 },
+            { id: 10, name: "주말반I", history: [true,false,false,false], mileage: 12.0 }
+        ]
+    };
+
+    // 로컬 스토리지 로드 (저장된 데이터가 있다면)
+    const savedState = localStorage.getItem('yutGameState');
+    if (savedState) { gameState = JSON.parse(savedState); }
+
+    // 4. 앱 초기화 및 그리기
+    window.onload = function() {
+        drawBoard();
+        renderTeamPage();
+        updateMissionDisplay();
+    };
+
+    // [기능] 페이지 전환
+    function showPage(pageId) {
+        document.querySelectorAll('.content-region').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(pageId).classList.add('active');
+        event.target.classList.add('active'); // 클릭된 버튼 활성화
+        if(pageId === 'page-board') drawBoard(); // 보드 페이지로 오면 다시 그리기
+    }
+
+    // [기능] 윷놀이 판 그리기 (Canvas)
+    function drawBoard() {
+        const canvas = document.getElementById('yutBoard');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // 초기화
+
+        // 판 배경색
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 1. 기본 점(Spot) 그리기
+        boardPoints.forEach(pt => {
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, pt.name ? 10 : 6, 0, Math.PI * 2);
+            ctx.fillStyle = pt.name ? "#cbd5e1" : "#e2e8f0"; // 코너점은 더 진하게
+            ctx.fill();
+            if(pt.name) {
+                ctx.fillStyle = "#64748b"; ctx.font = "bold 10px sans-serif"; ctx.fillText(pt.name, pt.x-10, pt.y-15);
+            }
+        });
+
+        // 2. 상대 팀 말 그리기
+        gameState.otherTeams.forEach(team => {
+            const pt = boardPoints[team.pos] || boardPoints[0];
+            ctx.beginPath();
+            ctx.arc(pt.x + (team.id === 'C' ? 10: -10), pt.y + (team.id === 'D' ? 10: -10), 8, 0, Math.PI * 2); // 겹치지 않게 오프셋
+            ctx.fillStyle = team.id === 'B' ? 'rgba(59, 130, 246, 0.7)' : (team.id === 'C' ? 'rgba(234, 179, 8, 0.7)' : 'rgba(34, 197, 94, 0.7)');
+            ctx.fill();
+            ctx.fillStyle = "white"; ctx.font = "bold 10px sans-serif"; ctx.fillText(team.id, pt.x+(team.id === 'C' ? 6: -14), pt.y+(team.id === 'D' ? 13: -7));
+        });
+
+        // 3. 우리 팀 말 그리기 (가장 위에)
+        const myPt = boardPoints[gameState.myTeamPos] || boardPoints[0];
+        ctx.beginPath();
+        ctx.arc(myPt.x, myPt.y, 12, 0, Math.PI * 2);
+        ctx.fillStyle = "#ef4444"; // Team A
+        ctx.fill();
+        ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke();
+        ctx.fillStyle = "white"; ctx.font = "bold 12px sans-serif"; ctx.fillText("우", myPt.x-6, myPt.y+4);
+    }
+
+    // [기능] 팀 페이지 렌더링 (3일 금지 & 마일리지)
+    function renderTeamPage() {
+        const tbody = document.getElementById('roster-table-body');
+        const mileageList = document.getElementById('mileage-list');
+        tbody.innerHTML = ''; mileageList.innerHTML = '';
+
+        gameState.members.forEach(m => {
+            // 3일 연속 제한 로직
+            const hist = m.history;
+            const ranYesterday = hist[hist.length - 1];
+            const ranDayBefore = hist[hist.length - 2];
+            const mustRest = ranYesterday && ranDayBefore;
+
+            // 로스터 테이블
+            tbody.innerHTML += `
+                <tr>
+                    <td>${m.name}</td>
+                    <td class="${ranDayBefore ? '' : 'st-rest'}">${ranDayBefore ? '🏃 Run' : 'Rest'}</td>
+                    <td class="${ranYesterday ? '' : 'st-rest'}">${ranYesterday ? '🏃 Run' : 'Rest'}</td>
+                    <td>
+                        <span class="status-badge ${mustRest ? 'must-rest' : 'can-run'}">
+                            ${mustRest ? '🚫 휴식필수' : '✅ 출전가능'}
+                        </span>
+                    </td>
+                </tr>
+            `;
+
+            // 마일리지 리스트
+            const progress = Math.min(100, (m.mileage / 10) * 100);
+            mileageList.innerHTML += `
+                <div style="margin-bottom: 10px;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:3px;">
+                        <span>${m.name}</span>
+                        <span style="font-weight:700 ${m.mileage >= 10 ? ';color:var(--primary)': ''}">${m.mileage.toFixed(1)} / 10 km</span>
+                    </div>
+                    <div style="width:100%; height:6px; background:#e2e8f0; border-radius:3px;">
+                        <div style="width:${progress}%; height:100%; background:${m.mileage >= 10 ? 'var(--primary)': '#94a3b8'}; border-radius:3px;"></div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    // [기능] 메인 화면 미션 표시 업데이트
+    function updateMissionDisplay() {
+        if (gameState.lastMission) {
+            const mission = missionData[gameState.lastMission];
+            document.getElementById('mission-title').innerText = mission.title;
+            document.getElementById('mission-desc').innerText = mission.desc;
+        }
+    }
+
+    // [관리자 기능] 게임 상태 업데이트 (저장)
+    function updateGameState() {
+        if(!confirm("정말로 업데이트 하시겠습니까? (이 동작은 되돌릴 수 없습니다)")) return;
+
+        const yut = document.getElementById('yut-result').value;
+        const special = document.getElementById('special-rule').value;
+
+        // 1. 위치 업데이트 로직 (단순화: 잡기/업기 상세 로직은 제외)
+        let moveCount = parseInt(yut);
+        let newPos = gameState.myTeamPos + moveCount;
+        
+        // 빽도 처리 및 음수 방지
+        if (newPos < 0) newPos = 0;
+        // 골인 처리 (판 길이 초과 시)
+        if (newPos >= boardPoints.length) {
+            alert("🎉 축하합니다! 말이 골인했습니다!");
+            newPos = 0; // 일단 다시 처음으로 (로컬룰에 따라 변경 가능)
+        }
+
+        gameState.myTeamPos = newPos;
+        gameState.lastMission = yut; // 마지막 미션 저장
+
+        // 2. 로컬 스토리지에 저장
+        localStorage.setItem('yutGameState', JSON.stringify(gameState));
+
+        // 3. UI 업데이트
+        alert(`업데이트 완료! 우리 팀은 ${yut === '-1' ? '빽도' : moveCount + '칸'} 이동하여 ${boardPoints[newPos].name || newPos + '번'} 칸에 도착했습니다.`);
+        drawBoard();
+        updateMissionDisplay();
+        showPage('page-board'); // 메인으로 이동
+    }
+</script>
+
+</body>
+</html>
