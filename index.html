@@ -3,338 +3,636 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏃‍♂️ RUNNING YUT-NOLRI - 팀 전략판</title>
+    <title>🏃‍♂️ RUNNING YUT-NOLRI v11.0</title>
     <style>
         :root {
-            --primary: #2563eb; --bg: #f1f5f9; --card: #ffffff; --text: #1e293b;
-            --team-a: #ef4444; --team-b: #3b82f6; --team-c: #eab308; --team-d: #22c55e;
+            --primary: #2563eb; --bg: #0f172a; --card: #1e293b; --text: #e2e8f0;
+            --team-1: #ef4444; --team-2: #3b82f6; --team-3: #eab308; --team-4: #22c55e;
+            --success: #34d399;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Pretendard', -apple-system, sans-serif; background: var(--bg); color: var(--text); padding-bottom: 60px; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: var(--text); padding-bottom: 80px; }
         
-        /* 헤더 & 내비게이션 */
-        header { background: var(--card); padding: 1rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); sticky; top: 0; z-index: 100; }
-        h1 { font-size: 1.25rem; font-weight: 800; }
-        .date-info { font-size: 0.8rem; color: #64748b; margin-top: 4px; }
+        header { background: var(--card); padding: 1rem 1rem 0.5rem 1rem; box-shadow: 0 4px 10px rgba(0,0,0,0.5); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #334155; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        h1 { font-size: 1.1rem; font-weight: 800; color: #fff; margin: 0; }
+        .badge-mini { font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: rgba(59,130,246,0.1); color: #60a5fa; border: 1px solid #3b82f6; }
         
-        nav { position: fixed; bottom: 0; width: 100%; background: var(--card); display: flex; justify-content: space-around; padding: 10px; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 100; }
-        .nav-btn { border: none; background: none; font-size: 0.9rem; font-weight: 600; color: #64748b; cursor: pointer; padding: 5px 10px; border-radius: 8px; }
-        .nav-btn.active { color: var(--primary); background: #eff6ff; }
+        .header-mission-board { background: #0f172a; border-radius: 8px; padding: 8px 10px; border: 1px solid #334155; max-height: 120px; overflow-y: auto; }
+        .empty-mission { text-align: center; color: #64748b; font-size: 0.75rem; padding: 5px 0; }
+        .header-mission-item { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; border-bottom: 1px dashed #1e293b; padding-bottom: 6px; }
+        .header-mission-item:last-child { margin-bottom: 0; border-bottom: none; padding-bottom: 0; }
+        .mission-badge { background: #1e293b; color: #60a5fa; font-size: 0.7rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; white-space: nowrap; border: 1px solid #334155;}
+        .runner-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+        .runner-chip { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: #334155; color: #e2e8f0; }
+        .runner-chip.empty { background: transparent; border: 1px solid #475569; color: #94a3b8; }
+        .runner-chip.completed { background: rgba(52,211,153,0.15); color: var(--success); text-decoration: line-through; border: 1px solid var(--success); }
 
-        /* 메인 컨텐츠 리전 */
-        .content-region { display: none; padding: 1rem; max-width: 800px; margin: 0 auto; }
+        nav { position: fixed; bottom: 0; width: 100%; background: var(--card); display: flex; justify-content: space-around; padding: 8px 4px; box-shadow: 0 -2px 10px rgba(0,0,0,0.5); z-index: 100; border-top: 1px solid #334155; }
+        .nav-btn { border: none; background: none; font-size: 0.7rem; font-weight: 700; color: #94a3b8; cursor: pointer; flex: 1; padding: 8px 2px; border-radius: 8px; transition: 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .nav-btn.active { color: #60a5fa; background: rgba(59,130,246,0.1); }
+        .nav-btn.action-btn { color: #f87171; }
+        .nav-btn.action-btn:active { background: rgba(239, 68, 68, 0.1); }
+
+        .content-region { display: none; padding: 1rem; max-width: 600px; margin: 0 auto; }
         .content-region.active { display: block; animation: fadeIn 0.3s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* 윷놀이 판 (Canvas 영역) */
-        .board-container { background: var(--card); border-radius: 16px; padding: 10px; text-align: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 1rem; }
-        #yutBoard { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 100 100"><rect width="100" height="100" fill="none" stroke="%23e2e8f0" stroke-width="0.5"/><circle cx="10" cy="10" r="2" fill="%23cbd5e1"/><circle cx="90" cy="10" r="2" fill="%23cbd5e1"/><circle cx="90" cy="90" r="2" fill="%23cbd5e1"/><circle cx="10" cy="90" r="2" fill="%23cbd5e1"/><circle cx="50" cy="50" r="2" fill="%23cbd5e1"/></svg>'); background-size: cover; border-radius: 8px; width: 100%; max-width: 400px; height: auto; aspect-ratio: 1/1; }
-        .team-legend { display: flex; justify-content: center; gap: 10px; margin-top: 10px; font-size: 0.8rem; }
-        .dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+        .board-card { border-radius: 16px; padding: 1rem; margin-bottom: 1rem; position: relative; }
+        #board-container { position: relative; width: 100%; aspect-ratio: 1/1; }
+        canvas { width: 100%; height: 100%; }
+        
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(4px); }
+        .hidden { display: none !important; }
+        .popup-box { background: var(--card); padding: 20px; border-radius: 16px; width: 85%; max-width: 350px; border: 1px solid #3b82f6; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .direction-btn { width: 100%; padding: 14px; margin-bottom: 10px; border: none; border-radius: 8px; background: #3b82f6; color: white; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
 
-        /* 카드 스타일 */
-        .card { background: var(--card); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .card-header { font-weight: 700; font-size: 1rem; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;}
+        .team-analysis-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+        .team-analysis-card { padding: 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid #334155; position: relative; display: flex; flex-direction: column; gap: 6px; }
+        .roster-btn { position: absolute; top: 12px; right: 12px; background: #334155; color: #e2e8f0; border: none; border-radius: 4px; font-size: 0.65rem; padding: 4px 8px; cursor: pointer; }
+
+        .card { background: var(--card); border-radius: 12px; padding: 1.2rem; margin-bottom: 1rem; border: 1px solid #334155; }
+        .card-title { font-weight: 700; margin-bottom: 12px; font-size: 1rem; color: #f8fafc; display: flex; justify-content: space-between; align-items: center; }
+
+        label { display: block; font-size: 0.8rem; font-weight: 700; margin-bottom: 5px; color: #94a3b8; }
+        select, input { width: 100%; padding: 12px; border: 1px solid #475569; border-radius: 8px; margin-bottom: 12px; font-size: 0.9rem; background: #0f172a; color: white; }
+        .btn-update { width: 100%; padding: 14px; border: none; border-radius: 8px; background: #2563eb; color: white; font-weight: 700; cursor: pointer; margin-bottom: 5px; }
         
-        /* 팀원 현황 테이블 */
-        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        th { text-align: left; color: #64748b; padding-bottom: 8px; }
-        td { padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
-        .status-badge { padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
-        .can-run { background: #dcfce7; color: #166534; }
-        .must-rest { background: #fee2e2; color: #991b1b; }
-        .st-rest { color: #94a3b8; text-decoration: line-through; }
+        .progress-bg { width: 100%; height: 8px; background: #334155; border-radius: 4px; overflow: hidden; margin-top: 5px; }
+        .progress-fill { height: 100%; transition: width 0.5s; }
         
-        /* 입력 폼 */
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; color: #475569; }
-        select, input { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; }
-        .btn-submit { width: 100%; padding: 12px; border: none; border-radius: 8px; background: var(--primary); color: white; font-weight: 700; cursor: pointer; margin-top: 10px; }
+        .mission-box { background: rgba(255,255,255,0.03); border: 1px solid #475569; padding: 12px; border-radius: 8px; margin-bottom: 10px; }
+        .mission-title { font-weight: 800; color: #60a5fa; margin-bottom: 10px; font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center;}
+        .assign-row { display: flex; gap: 6px; margin-bottom: 10px; }
+        .assign-select { flex: 1; padding: 8px; margin-bottom: 0; font-size: 0.85rem; }
+        .btn-assign { background: #3b82f6; color: white; border: none; border-radius: 6px; padding: 0 12px; font-weight: 700; cursor: pointer; }
         
-        @media (min-width: 600px) {
-            h1 { font-size: 1.5rem; }
-            .board-container { padding: 20px; }
-        }
+        .assignee-tag { background: #1e293b; border: 1px solid #475569; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; color: #e2e8f0; margin-right: 5px; margin-bottom: 5px; display: inline-flex; align-items: center; gap: 4px; }
+        .assignee-tag.completed { border-color: var(--success); background: rgba(52,211,153,0.1); color: var(--success); }
+        .btn-ok { background: var(--success); color: #0f172a; border: none; border-radius: 4px; padding: 2px 6px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
+        .btn-del { color: #ef4444; cursor: pointer; font-weight: bold; font-size: 0.8rem; padding-left: 4px; border-left: 1px solid #475569; margin-left: 2px; }
+
+        .view-toggle { display: flex; background: #0f172a; border-radius: 8px; padding: 4px; margin-bottom: 15px; border: 1px solid #334155; }
+        .view-toggle button { flex: 1; padding: 8px; border: none; background: transparent; color: #94a3b8; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 0.85rem; }
+        .view-toggle button.active { background: #3b82f6; color: white; }
     </style>
 </head>
 <body>
 
 <header>
-    <h1>🏃‍♂️ RUNNING YUT-NOLRI</h1>
-    <div class="date-info">챌린지 기간: 26.03.23 ~ 04.05 (2주) | <span id="current-date"></span></div>
+    <div class="header-top">
+        <h1>🏃‍♂️ 러닝 윷놀이 v11.0</h1>
+        <span id="header-badge" class="badge-mini">1주차 / D-14</span>
+    </div>
+    <div id="header-mission-board" class="header-mission-board"></div>
 </header>
 
-<nav>
-    <button class="nav-btn active" onclick="showPage('page-board')">📍 메인 보드</button>
-    <button class="nav-btn" onclick="showPage('page-team')">🏃 팀원 관리</button>
-    <button class="nav-btn" onclick="showPage('page-admin')">⚙️ 관리자</button>
-</nav>
-
 <div id="page-board" class="content-region active">
-    <div class="board-container">
-        <canvas id="yutBoard" width="400" height="400"></canvas>
-        <div class="team-legend">
-            <div><span class="dot" style="background:var(--team-a)"></span>우리팀</div>
-            <div><span class="dot" style="background:var(--team-b)"></span>B팀</div>
-            <div><span class="dot" style="background:var(--team-c)"></span>C팀</div>
-            <div><span class="dot" style="background:var(--team-d)"></span>D팀</div>
+    <div class="card board-card">
+        <div id="board-container">
+            <canvas id="yutBoard" width="400" height="400"></canvas>
+            <div id="direction-select-overlay" class="overlay hidden">
+                <div class="popup-box">
+                    <h3 style="color: white; margin-bottom: 15px;">어느 경로를 탈까요?</h3>
+                    <p id="popup-desc" style="font-size:0.8rem; color:#94a3b8; margin-bottom:15px;">진행할 방향을 선택하세요.</p>
+                    <div id="direction-buttons-list"></div>
+                </div>
+            </div>
         </div>
-    </div>
-    
-    <div class="card">
-        <div class="card-header">🔊 확정 미션 (23:00)</div>
-        <p style="font-size: 0.9rem; color: #475569;">어젯밤 확정된 미션입니다. 오늘 밤 22:50까지 인증하세요!</p>
-        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-top: 10px; border-left: 4px solid var(--primary);">
-            <div style="font-size: 1.1rem; font-weight: 700; color: var(--primary);" id="mission-title">미션 대기 중</div>
-            <div style="font-size: 0.85rem; margin-top: 4px;" id="mission-desc">관리자가 어제 결과를 입력해주세요.</div>
-        </div>
+        
+        <h3 style="font-size:1rem; font-weight:800; color:#f8fafc; margin-top:20px;">📊 팀별 전력 분석</h3>
+        <div class="team-analysis-list" id="team-info-grid"></div>
     </div>
 </div>
 
 <div id="page-team" class="content-region">
     <div class="card">
-        <div class="card-header">🚫 3일 연속 러닝 금지 체크</div>
-        <table>
-            <thead>
-                <tr>
-                    <th>이름</th>
-                    <th>어제(일)</th>
-                    <th>오늘(월)</th>
-                    <th>상태</th>
-                </tr>
-            </thead>
-            <tbody id="roster-table-body">
-                </tbody>
-        </table>
+        <div class="card-title">
+            <span>🎯 예측 & 미션 배정</span>
+            <div>
+                <button onclick="addCustomMission()" style="background:#475569; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer;">+ 수동추가</button>
+                <button onclick="clearMissions()" style="background:transparent; color:#ef4444; border:1px solid #ef4444; padding:4px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer; margin-left:4px;">전체삭제</button>
+            </div>
+        </div>
+        <p style="font-size:0.75rem; color:#94a3b8; margin-bottom:10px;">우리 팀의 라인업을 짜고 달린 후 [OK]를 눌러 기록하세요.</p>
+        <div id="mission-list-container"></div>
     </div>
 
     <div class="card">
-        <div class="card-header">📉 주간 마일리지 (최소 10km)</div>
-        <div id="mileage-list">
-            </div>
+        <div class="card-title">
+            <span>🏆 팀원 상태 및 랭킹</span>
+            <select id="team-filter" onchange="render()" style="width: auto; padding: 4px 8px; margin: 0; font-size: 0.75rem;">
+                <option value="1">1팀 윷캔두잇</option><option value="2">2팀 윷알씨</option>
+                <option value="3">3팀 윳쾌상쾌</option><option value="4">4팀 말달리자</option>
+            </select>
+        </div>
+        <div class="view-toggle">
+            <button id="btn-view-week" class="active" onclick="setViewMode('week')">이번 주 기록</button>
+            <button id="btn-view-total" onclick="setViewMode('total')">전체 누적 기록</button>
+        </div>
+        <div id="combined-team-status"></div>
     </div>
 </div>
 
 <div id="page-admin" class="content-region">
     <div class="card">
-        <div class="card-header">⚙️ 어제 윷 결과 업데이트 (23:00)</div>
-        <div class="form-group">
-            <label>1. 나온 윷 결과</label>
-            <select id="yut-result">
-                <option value="1">도 (1칸 - 3km TT)</option>
-                <option value="2">개 (2칸 - 5km 러닝)</option>
-                <option value="3">걸 (3칸 - 정기런)</option>
-                <option value="4">윷 (4칸 - 8km 러닝 + 한 번 더)</option>
-                <option value="5">모 (5칸 - 15km 러닝 + 한 번 더)</option>
-                <option value="-1">빽도 (-1칸 + 전체 휴식)</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>2. 잡기/업기 발생 여부</label>
-            <select id="special-rule">
-                <option value="none">없음</option>
-                <option value="catch">상대 말을 잡았다! (+한 번 더)</option>
-                <option value="carry_2">말 2개 업기 (+추가 3인 동반주)</option>
-                <option value="carry_3">말 3개 업기 (+추가 5인 동반주 - 위험!)</option>
-            </select>
-        </div>
-        <button class="btn-submit" onclick="updateGameState()">게임 상태 업데이트 (저장)</button>
+        <div class="card-title">⚙️ 윷놀이 보드 이동</div>
+        <label>1. 조종할 팀 선택</label>
+        <select id="edit-team-sel" onchange="updatePieceSelect()">
+            <option value="1">1팀 윷캔두잇</option><option value="2">2팀 윷알씨</option>
+            <option value="3">3팀 윳쾌상쾌</option><option value="4">4팀 말달리자</option>
+        </select>
+        <label>2. 움직일 말 선택</label>
+        <select id="edit-piece-sel"></select>
+        <label>3. 윷 결과</label>
+        <select id="edit-yut-val">
+            <option value="1">도 (3km / 2인↑)</option><option value="2">개 (5km / 3인↑)</option><option value="3">걸 (정기런 / 2인↑)</option>
+            <option value="4">윷 (8km / 2인↑)</option><option value="5">모 (15km / 1인)</option><option value="-1">빽도 (휴식)</option>
+        </select>
+        <button class="btn-update" onclick="attemptMove()">위치 반영 & 미션 기록</button>
     </div>
-    <p style="font-size: 0.75rem; color: #94a3b8; text-align: center;">* 데이터는 브라우저(LocalStorage)에 저장됩니다. 팀원간 공유를 위해서는 추후 Google Sheets 연동이 필요합니다.</p>
+    
+    <div class="card">
+        <div class="card-title">📝 러너 기록 관리 (전체 팀 공용)</div>
+        <p style="font-size:0.75rem; color:#94a3b8; margin-bottom:10px;">타팀이 과거에 뛴 기록이나, 누락된 마일리지를 날짜별로 추가합니다.</p>
+        <label>팀 선택</label>
+        <select id="record-team-sel" onchange="updateRecordMemberSelect()">
+            <option value="1">1팀 윷캔두잇</option><option value="2">2팀 윷알씨</option>
+            <option value="3">3팀 윳쾌상쾌</option><option value="4">4팀 말달리자</option>
+        </select>
+        <label>멤버 선택</label>
+        <select id="record-member-sel"></select>
+        <label>날짜 선택</label>
+        <select id="record-date-sel"></select>
+        
+        <label>활동 거리 (km)</label>
+        <input type="number" id="record-dist" step="0.1" placeholder="예: 5.5">
+        
+        <div style="display: flex; gap: 8px; margin-top: 10px;">
+            <button class="btn-update" style="background:#2563eb; font-size: 0.8rem; padding: 10px;" onclick="addRecord()">거리 합산</button>
+            <button class="btn-update" style="background:#475569; font-size: 0.8rem; padding: 10px;" onclick="addBlindRecord()">거리모름(체크만)</button>
+            <button class="btn-update" style="background:transparent; border:1px solid #ef4444; color:#ef4444; font-size: 0.8rem; padding: 10px;" onclick="clearRecord()">해당일 삭제</button>
+        </div>
+    </div>
+
+    <div style="text-align: right;">
+        <button class="btn-update" style="background:transparent; border:1px solid #ef4444; color:#ef4444; width:auto; padding: 6px 12px; font-size: 0.75rem;" onclick="resetGame()">앱 데이터 완전 초기화</button>
+    </div>
 </div>
 
+<div id="roster-modal" class="overlay hidden" onclick="this.classList.add('hidden')">
+    <div class="popup-box" onclick="event.stopPropagation()">
+        <h3 id="roster-modal-title" style="color: white; margin-bottom: 15px;">팀 명단</h3>
+        <div id="roster-modal-content" style="font-size: 0.9rem; color: #cbd5e1; line-height: 1.6; text-align: left; background: #0f172a; padding: 15px; border-radius: 8px;"></div>
+        <button class="btn-update" style="margin-top: 15px;" onclick="document.getElementById('roster-modal').classList.add('hidden')">닫기</button>
+    </div>
+</div>
+
+<nav>
+    <button class="nav-btn active" id="tab-board" onclick="tab('page-board', this)"><span style="font-size:1.2rem;">📍</span>보드</button>
+    <button class="nav-btn" id="tab-team" onclick="tab('page-team', this)"><span style="font-size:1.2rem;">🎯</span>미션+팀</button>
+    <button class="nav-btn" id="tab-admin" onclick="tab('page-admin', this)"><span style="font-size:1.2rem;">⚙️</span>관리</button>
+    <button class="nav-btn action-btn" onclick="undoAction()"><span style="font-size:1.2rem;">↩️</span>Undo</button>
+    <button class="nav-btn action-btn" style="color:#60a5fa;" onclick="redoAction()"><span style="font-size:1.2rem;">↪️</span>Redo</button>
+</nav>
+
 <script>
-    // 0. 초기 세팅 및 날짜
-    document.getElementById('current-date').innerText = new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
+    function formatDateString(dateObj) {
+        let y = dateObj.getFullYear();
+        let m = String(dateObj.getMonth() + 1).padStart(2, '0');
+        let d = String(dateObj.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+    
+    const startDate = new Date('2026-03-23');
+    const endDate = new Date('2026-04-05');
+    const week2Start = new Date('2026-03-30');
+    const today = new Date(); 
+    const todayStr = formatDateString(today);
+    
+    const dDay = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+    const currentWeek = today < week2Start ? 1 : 2;
 
-    // 1. 윷놀이 판 좌표 데이터 (정사각형 400x400 기준 간략화)
-    const boardPoints = [
-        {id: 0, x: 350, y: 350, name: "출발"}, // 우하단
-        {id: 1, x: 350, y: 280}, {id: 2, x: 350, y: 210}, {id: 3, x: 350, y: 140}, {id: 4, x: 350, y: 70},
-        {id: 5, x: 350, y: 50, name: "코너1"}, // 우상단
-        {id: 6, x: 280, y: 50}, {id: 7, x: 210, y: 50}, {id: 8, x: 140, y: 50}, {id: 9, x: 70, y: 50},
-        {id: 10, x: 50, y: 50, name: "코너2"}, // 좌상단
-        {id: 11, x: 50, y: 140}, {id: 12, x: 50, y: 210}, {id: 13, x: 50, y: 280}, {id: 14, x: 50, y: 350},
-        {id: 15, x: 50, y: 350, name: "코너3"}, // 좌하단
-        {id: 16, x: 140, y: 350}, {id: 17, x: 210, y: 350}, {id: 18, x: 280, y: 350},
-        {id: 20, x: 200, y: 200, name: "중앙"} // 대각선은 생략
-    ];
-
-    // 2. 미션 데이터
-    const missionData = {
-        "1": { title: "도(1칸): 3km TT", desc: "2인 이상 팀원 필요. 최대한 빠르게!" },
-        "2": { title: "개(2칸): 5km 러닝", desc: "3인 이상 팀원 필요. 초보조 투입 적기." },
-        "3": { title: "걸(3칸): 정기런 참석", desc: "2인 이상 팀원 필요. 번개런 개최 권장." },
-        "4": { title: "윷(4칸): 8km 러닝", desc: "2인 이상 필요. [추가 던지기] 획득!" },
-        "5": { title: "모(5칸): 15km 러닝", desc: "에이스 1인 단독 미션. [추가 던지기] 획득!" },
-        "-1": { title: "빽도(-1칸): 후퇴", desc: "뒤로 1칸 이동 및 팀 전체 강제 휴식." }
-    };
-
-    // 3. 더미 데이터 (원래는 DB나 Sheets에서 가져옴)
-    let gameState = {
-        myTeamPos: 0,
-        otherTeams: [ {id: 'B', pos: 3}, {id: 'C', pos: 7}, {id: 'D', pos: 12} ],
-        lastMission: null,
-        // 우리 팀원 10명 상태 (이름, 7일간 러닝기록, 주간 마일리지)
-        members: [
-            { id: 1, name: "팀장(나)", history: [false,false,true,true], mileage: 15.5 },
-            { id: 2, name: "에이스A", history: [true,true,false,false], mileage: 22.0 },
-            { id: 3, name: "러너B", history: [false,true,true,false], mileage: 8.0 },
-            { id: 4, name: "러너C", history: [false,false,false,false], mileage: 3.0 },
-            { id: 5, name: "러너D", history: [false,true,false,true], mileage: 10.0 },
-            { id: 6, name: "뉴비E", history: [false,false,false,false], mileage: 0.0 },
-            { id: 7, name: "철인F", history: [true,true,false,true], mileage: 25.0 },
-            { id: 8, name: "러너G", history: [false,true,false,false], mileage: 5.0 },
-            { id: 9, name: "러너H", history: [false,false,true,false], mileage: 6.0 },
-            { id: 10, name: "주말반I", history: [true,false,false,false], mileage: 12.0 }
-        ]
-    };
-
-    // 로컬 스토리지 로드 (저장된 데이터가 있다면)
-    const savedState = localStorage.getItem('yutGameState');
-    if (savedState) { gameState = JSON.parse(savedState); }
-
-    // 4. 앱 초기화 및 그리기
-    window.onload = function() {
-        drawBoard();
-        renderTeamPage();
-        updateMissionDisplay();
-    };
-
-    // [기능] 페이지 전환
-    function showPage(pageId) {
-        document.querySelectorAll('.content-region').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
-        document.getElementById(pageId).classList.add('active');
-        event.target.classList.add('active'); // 클릭된 버튼 활성화
-        if(pageId === 'page-board') drawBoard(); // 보드 페이지로 오면 다시 그리기
+    const dateOptions = [];
+    const weekdays = ['일','월','화','수','목','금','토'];
+    for(let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        let dStr = formatDateString(d);
+        let label = `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} (${weekdays[d.getDay()]})`;
+        dateOptions.push({ val: dStr, label: label });
     }
 
-    // [기능] 윷놀이 판 그리기 (Canvas)
-    function drawBoard() {
-        const canvas = document.getElementById('yutBoard');
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height); // 초기화
+    const pts = {
+        0: {x:350,y:350, name:"출발"}, 1: {x:350,y:290}, 2: {x:350,y:230}, 3: {x:350,y:170}, 4: {x:350,y:110},
+        5: {x:350,y:50, name:"우상코너"}, 6: {x:290,y:50}, 7: {x:230,y:50}, 8: {x:170,y:50}, 9: {x:110,y:50},
+        10: {x:50,y:50, name:"좌상코너"}, 11: {x:50,y:110}, 12: {x:50,y:170}, 13: {x:50,y:230}, 14: {x:50,y:290},
+        15: {x:50,y:350, name:"좌하코너"}, 16: {x:110,y:350}, 17: {x:170,y:350}, 18: {x:230,y:350}, 19: {x:290,y:350},
+        20: {x:350,y:350, name:"골인"}, 21: {x:300,y:100}, 22: {x:250,y:150}, 23: {x:200,y:200, name:"중앙"}, 24: {x:150,y:250}, 25: {x:100,y:300},
+        26: {x:100,y:100}, 27: {x:150,y:150}, 28: {x:250,y:250}, 29: {x:300,y:300}
+    };
 
-        // 판 배경색
-        ctx.fillStyle = "#f8fafc";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const rosterData = {
+        1: { name: "윷캔두잇", members: ["이수지", "남우석", "송유경", "김경락", "김지훈", "김진희", "김상돈", "배민주", "김희중", "정진욱"], color: "#ef4444" },
+        2: { name: "윷알씨", members: ["심다해", "김지은", "권해령", "손주연", "윤성진", "이명재", "허남정", "민성훈", "최진성", "조두현"], color: "#3b82f6" },
+        3: { name: "윳쾌상쾌", members: ["차현주", "유예진", "조인원", "김서현", "임택성", "민종희", "정승득", "유영웅", "전지웅", "최종옥"], color: "#eab308" },
+        4: { name: "말달리자", members: ["박은경", "김영현", "이서연", "조성연", "이용덕", "김사인", "김지형", "김성준", "이용태", "서효덕"], color: "#22c55e" }
+    };
 
-        // 1. 기본 점(Spot) 그리기
-        boardPoints.forEach(pt => {
-            ctx.beginPath();
-            ctx.arc(pt.x, pt.y, pt.name ? 10 : 6, 0, Math.PI * 2);
-            ctx.fillStyle = pt.name ? "#cbd5e1" : "#e2e8f0"; // 코너점은 더 진하게
-            ctx.fill();
-            if(pt.name) {
-                ctx.fillStyle = "#64748b"; ctx.font = "bold 10px sans-serif"; ctx.fillText(pt.name, pt.x-10, pt.y-15);
-            }
-        });
+    const missionDict = { 1:"도", 2:"개", 3:"걸", 4:"윷", 5:"모", "-1":"빽도" };
+    const defaultDistMap = { 1: 3, 2: 5, 3: 5, 4: 8, 5: 15, "-1": 0 };
 
-        // 2. 상대 팀 말 그리기
-        gameState.otherTeams.forEach(team => {
-            const pt = boardPoints[team.pos] || boardPoints[0];
-            ctx.beginPath();
-            ctx.arc(pt.x + (team.id === 'C' ? 10: -10), pt.y + (team.id === 'D' ? 10: -10), 8, 0, Math.PI * 2); // 겹치지 않게 오프셋
-            ctx.fillStyle = team.id === 'B' ? 'rgba(59, 130, 246, 0.7)' : (team.id === 'C' ? 'rgba(234, 179, 8, 0.7)' : 'rgba(34, 197, 94, 0.7)');
-            ctx.fill();
-            ctx.fillStyle = "white"; ctx.font = "bold 10px sans-serif"; ctx.fillText(team.id, pt.x+(team.id === 'C' ? 6: -14), pt.y+(team.id === 'D' ? 13: -7));
-        });
+    let state = {
+        historyLog: [],
+        futureLog: [], 
+        teams: [1,2,3,4].map(id => ({
+            id: id, name: rosterData[id].name, color: rosterData[id].color,
+            pieces: [{id:'A',pos:0,st:'wait'},{id:'B',pos:0,st:'wait'},{id:'C',pos:0,st:'wait'},{id:'D',pos:0,st:'wait'}],
+            lastM: "-"
+        })),
+        members: [], 
+        activeMissions: [],
+        viewMode: 'week'
+    };
 
-        // 3. 우리 팀 말 그리기 (가장 위에)
-        const myPt = boardPoints[gameState.myTeamPos] || boardPoints[0];
-        ctx.beginPath();
-        ctx.arc(myPt.x, myPt.y, 12, 0, Math.PI * 2);
-        ctx.fillStyle = "#ef4444"; // Team A
-        ctx.fill();
-        ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke();
-        ctx.fillStyle = "white"; ctx.font = "bold 12px sans-serif"; ctx.fillText("우", myPt.x-6, myPt.y+4);
+    [1,2,3,4].forEach(tId => {
+        rosterData[tId].members.forEach(mName => { state.members.push({ teamId: tId, name: mName, runs: {} }); });
+    });
+
+    function saveStateForUndo() {
+        let clone = JSON.parse(JSON.stringify(state));
+        clone.historyLog = []; clone.futureLog = [];
+        state.historyLog.push(clone);
+        if(state.historyLog.length > 10) state.historyLog.shift();
+        state.futureLog = [];
     }
 
-    // [기능] 팀 페이지 렌더링 (3일 금지 & 마일리지)
-    function renderTeamPage() {
-        const tbody = document.getElementById('roster-table-body');
-        const mileageList = document.getElementById('mileage-list');
-        tbody.innerHTML = ''; mileageList.innerHTML = '';
+    function undoAction() {
+        if(state.historyLog.length === 0) return alert("되돌릴 기록이 없습니다.");
+        let clone = JSON.parse(JSON.stringify(state));
+        clone.historyLog = []; clone.futureLog = [];
+        state.futureLog.push(clone); 
+        let prev = state.historyLog.pop();
+        let keepH = state.historyLog; let keepF = state.futureLog;
+        state = prev; state.historyLog = keepH; state.futureLog = keepF;
+        save();
+    }
 
-        gameState.members.forEach(m => {
-            // 3일 연속 제한 로직
-            const hist = m.history;
-            const ranYesterday = hist[hist.length - 1];
-            const ranDayBefore = hist[hist.length - 2];
-            const mustRest = ranYesterday && ranDayBefore;
+    function redoAction() {
+        if(state.futureLog.length === 0) return alert("앞으로 되돌릴 기록이 없습니다.");
+        let clone = JSON.parse(JSON.stringify(state));
+        clone.historyLog = []; clone.futureLog = [];
+        state.historyLog.push(clone);
+        let next = state.futureLog.pop();
+        let keepH = state.historyLog; let keepF = state.futureLog;
+        state = next; state.historyLog = keepH; state.futureLog = keepF;
+        save();
+    }
 
-            // 로스터 테이블
-            tbody.innerHTML += `
-                <tr>
-                    <td>${m.name}</td>
-                    <td class="${ranDayBefore ? '' : 'st-rest'}">${ranDayBefore ? '🏃 Run' : 'Rest'}</td>
-                    <td class="${ranYesterday ? '' : 'st-rest'}">${ranYesterday ? '🏃 Run' : 'Rest'}</td>
-                    <td>
-                        <span class="status-badge ${mustRest ? 'must-rest' : 'can-run'}">
-                            ${mustRest ? '🚫 휴식필수' : '✅ 출전가능'}
-                        </span>
-                    </td>
-                </tr>
-            `;
+    function save() { localStorage.setItem('running_yut_v11', JSON.stringify(state)); render(); }
+    
+    function load() { 
+        const s = localStorage.getItem('running_yut_v11') || localStorage.getItem('running_yut_v10'); // 호환성
+        if(s) { let loaded = JSON.parse(s); if(!loaded.historyLog) loaded.historyLog = []; if(!loaded.futureLog) loaded.futureLog = []; state = loaded; }
+        
+        const dSel = document.getElementById('record-date-sel');
+        dSel.innerHTML = dateOptions.map(d => `<option value="${d.val}" ${d.val === todayStr ? 'selected' : ''}>${d.label}</option>`).join('');
 
-            // 마일리지 리스트
-            const progress = Math.min(100, (m.mileage / 10) * 100);
-            mileageList.innerHTML += `
-                <div style="margin-bottom: 10px;">
-                    <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:3px;">
-                        <span>${m.name}</span>
-                        <span style="font-weight:700 ${m.mileage >= 10 ? ';color:var(--primary)': ''}">${m.mileage.toFixed(1)} / 10 km</span>
+        updateHeader(); updatePieceSelect(); updateRecordMemberSelect(); render(); 
+    }
+
+    function updateHeader() { document.getElementById('header-badge').innerText = `${currentWeek}주차 / D-${dDay > 0 ? dDay : 'Day'}`; }
+
+    function tab(id, btnElement) {
+        document.querySelectorAll('.content-region').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        if(btnElement) btnElement.classList.add('active');
+        if(id === 'page-admin') { updatePieceSelect(); updateRecordMemberSelect(); }
+        if(id === 'page-board') renderCanvas();
+    }
+
+    function setViewMode(mode) { state.viewMode = mode; document.getElementById('btn-view-week').classList.toggle('active', mode === 'week'); document.getElementById('btn-view-total').classList.toggle('active', mode === 'total'); render(); }
+
+    function showRoster(teamId) {
+        let tData = rosterData[teamId];
+        document.getElementById('roster-modal-title').innerText = `${teamId}팀 (${tData.name})`;
+        let listHTML = tData.members.map(m => `<span style="display:inline-block; width:45%; margin-bottom:8px;">🏃 ${m}</span>`).join('');
+        document.getElementById('roster-modal-content').innerHTML = listHTML;
+        document.getElementById('roster-modal').classList.remove('hidden');
+    }
+
+    function updatePieceSelect() {
+        const teamIdx = document.getElementById('edit-team-sel').value - 1;
+        const team = state.teams[teamIdx];
+        const sel = document.getElementById('edit-piece-sel');
+        sel.innerHTML = '';
+        let waitPieces = team.pieces.filter(p => p.st === 'wait');
+        if (waitPieces.length > 0) sel.innerHTML += `<option value="wait">🟢 새 말 출발 (대기: ${waitPieces.length}개)</option>`;
+        let activeGroups = {};
+        team.pieces.filter(p => p.st === 'active').forEach(p => { if(!activeGroups[p.pos]) activeGroups[p.pos] = { count: 0 }; activeGroups[p.pos].count++; });
+        for (let pos in activeGroups) sel.innerHTML += `<option value="${pos}">📍 ${pts[pos].name || pos+'번 칸'} 이동 (${activeGroups[pos].count}개 묶음)</option>`;
+        if (sel.innerHTML === '') sel.innerHTML = `<option value="none">모든 말이 골인했습니다!</option>`;
+    }
+
+    function updateRecordMemberSelect() {
+        const tId = parseInt(document.getElementById('record-team-sel').value);
+        const sel = document.getElementById('record-member-sel');
+        sel.innerHTML = state.members.filter(m => m.teamId === tId).map(m => `<option value="${m.name}">${m.name}</option>`).join('');
+    }
+
+    function addRecord() {
+        const name = document.getElementById('record-member-sel').value;
+        const dateStr = document.getElementById('record-date-sel').value;
+        const dist = parseFloat(document.getElementById('record-dist').value);
+        if(isNaN(dist) || dist <= 0) return alert("올바른 거리를 입력하세요.");
+        
+        saveStateForUndo();
+        const member = state.members.find(m => m.name === name);
+        member.runs[dateStr] = (member.runs[dateStr] || 0) + dist;
+        save();
+        document.getElementById('record-dist').value = '';
+        alert(`${name}님의 ${dateStr} 기록이 합산되었습니다.`);
+    }
+
+    function addBlindRecord() {
+        const name = document.getElementById('record-member-sel').value;
+        const dateStr = document.getElementById('record-date-sel').value;
+        saveStateForUndo();
+        const member = state.members.find(m => m.name === name);
+        if(!member.runs[dateStr]) member.runs[dateStr] = 0.1; 
+        save();
+        alert(`${name}님이 ${dateStr}에 달린 것으로 체크되었습니다.`);
+    }
+
+    function clearRecord() {
+        const name = document.getElementById('record-member-sel').value;
+        const dateStr = document.getElementById('record-date-sel').value;
+        saveStateForUndo();
+        const member = state.members.find(m => m.name === name);
+        delete member.runs[dateStr];
+        save();
+        alert(`${name}님의 ${dateStr} 기록이 삭제(휴식 처리) 되었습니다.`);
+    }
+
+    function checkBan(member) {
+        let y1 = new Date(today); y1.setDate(y1.getDate() - 1);
+        let y2 = new Date(today); y2.setDate(y2.getDate() - 2);
+        let d1 = formatDateString(y1); let d2 = formatDateString(y2);
+        return (member.runs[d1] > 0 && member.runs[d2] > 0);
+    }
+
+    function calcDist(member, week) {
+        let total = 0;
+        for(let dStr in member.runs) {
+            let dObj = new Date(dStr);
+            let w = dObj < week2Start ? 1 : 2;
+            if (week === 'total' || week === w) total += member.runs[dStr];
+        }
+        return total;
+    }
+
+    function renderCanvas() {
+        const cvs = document.getElementById('yutBoard');
+        if(!cvs) return;
+        const ctx = cvs.getContext('2d');
+        ctx.clearRect(0,0,400,400);
+
+        ctx.strokeStyle = "#334155"; ctx.lineWidth = 1.5;
+        ctx.strokeRect(50, 50, 300, 300);
+        ctx.beginPath(); ctx.moveTo(50, 50); ctx.lineTo(350, 350); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(350, 50); ctx.lineTo(50, 350); ctx.stroke();
+
+        for(let i=0; i<=29; i++) {
+            if(i === 20) continue;
+            let p = pts[i]; let isCorner = [0,5,10,15,23].includes(i);
+            ctx.beginPath(); ctx.arc(p.x, p.y, isCorner ? 12 : 6, 0, Math.PI * 2);
+            ctx.fillStyle = isCorner ? "#1e293b" : "#334155"; ctx.fill();
+            ctx.strokeStyle = isCorner ? "#60a5fa" : "#475569"; ctx.lineWidth = isCorner ? 2 : 1; ctx.stroke();
+            if(p.name && isCorner) { ctx.fillStyle = "#94a3b8"; ctx.font = "bold 10px sans-serif"; ctx.fillText(p.name, p.x-15, p.y-18); }
+        }
+
+        let spots = {};
+        state.teams.forEach(t => { t.pieces.filter(p => p.st === 'active').forEach(p => { if(!spots[p.pos]) spots[p.pos] = []; spots[p.pos].push(t); }); });
+
+        for (let pos in spots) {
+            let count = spots[pos].length; let team = spots[pos][0];
+            ctx.beginPath(); ctx.arc(pts[pos].x, pts[pos].y, 11, 0, 7);
+            ctx.fillStyle = team.color; ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = "#fff"; ctx.font = "bold 11px sans-serif";
+            ctx.fillText(count > 1 ? `x${count}` : team.id, pts[pos].x - (count>1?6:3), pts[pos].y + 4);
+        }
+    }
+
+    function render() {
+        renderCanvas();
+        
+        // 1. 헤더
+        const headerMissionBoard = document.getElementById('header-mission-board');
+        if (state.activeMissions.length === 0) {
+            headerMissionBoard.innerHTML = '<div class="empty-mission">오늘 진행할 확정 미션이 없습니다.</div>';
+        } else {
+            headerMissionBoard.innerHTML = state.activeMissions.map(m => {
+                const missionTitle = m.text.split('(')[0];
+                const runners = m.assignees.length > 0
+                    ? m.assignees.map(a => `<span class="runner-chip ${a.completed ? 'completed' : ''}">${a.name}</span>`).join('')
+                    : '<span class="runner-chip empty">배정 대기중</span>';
+                return `<div class="header-mission-item"><span class="mission-badge">${missionTitle}</span><div class="runner-chips">${runners}</div></div>`;
+            }).join('');
+        }
+        
+        // 2. 팀 분석 보드
+        document.getElementById('team-info-grid').innerHTML = state.teams.map(t => {
+            let active = t.pieces.filter(p => p.st === 'active').length;
+            let goal = t.pieces.filter(p => p.st === 'goal').length;
+            let bannedMembers = state.members.filter(m => m.teamId === t.id && checkBan(m)).map(m => m.name);
+            let bannedText = bannedMembers.length > 0 ? bannedMembers.join(', ') : '없음';
+            return `
+            <div class="team-analysis-card">
+                <button class="roster-btn" onclick="showRoster(${t.id})">명단</button>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="color:${t.color}; font-size:1.05rem;">${t.id}팀 ${t.name}</strong>
+                    <span style="font-size:0.75rem; color:#94a3b8; font-weight:700;">필드 ${active} / 골인 ${goal}</span>
+                </div>
+                <div style="font-size:0.8rem; color:#cbd5e1; margin-top:4px;">🎯 최근 윷 결과: <strong style="color:#fff;">${t.lastM || '-'}</strong></div>
+                <div style="font-size:0.8rem; color:#cbd5e1;">🚫 출전 불가: <span style="color:${bannedMembers.length > 0 ? '#ef4444' : '#34d399'}; font-weight:700;">${bannedText}</span></div>
+            </div>`;
+        }).join('');
+
+        // 3. 미션 배정 탭
+        const team1Members = state.members.filter(m => m.teamId === 1);
+        const missionContainer = document.getElementById('mission-list-container');
+        if (state.activeMissions.length === 0) {
+            missionContainer.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b; font-size:0.85rem; border:1px dashed #334155; border-radius:8px;">현재 배정할 미션이 없습니다.</div>';
+        } else {
+            missionContainer.innerHTML = state.activeMissions.map(m => `
+                <div class="mission-box">
+                    <div class="mission-title">${m.text} <button onclick="deleteMission(${m.id})" style="background:transparent; border:none; color:#ef4444; cursor:pointer; font-size:0.75rem; font-weight:bold;">삭제 ✕</button></div>
+                    <div class="assign-row">
+                        <select id="assign-sel-${m.id}" class="assign-select">${team1Members.map(mem => `<option value="${mem.name}">${mem.name}</option>`).join('')}</select>
+                        <button class="btn-assign" onclick="assignMember(${m.id})">배정</button>
                     </div>
-                    <div style="width:100%; height:6px; background:#e2e8f0; border-radius:3px;">
-                        <div style="width:${progress}%; height:100%; background:${m.mileage >= 10 ? 'var(--primary)': '#94a3b8'}; border-radius:3px;"></div>
+                    <div>
+                        ${m.assignees.length > 0 
+                            ? m.assignees.map(a => `
+                                <span class="assignee-tag ${a.completed ? 'completed' : ''}">
+                                    ${a.name} ${a.completed ? `<span style="font-size:0.7rem;">(${a.dist}km)</span>` : ''}
+                                    ${!a.completed ? `<button class="btn-ok" onclick="completeMission(${m.id}, '${a.name}', ${m.defaultDist})">OK</button>` : ''}
+                                    <span class="btn-del" onclick="removeAssignee(${m.id}, '${a.name}')">✕</span>
+                                </span>`).join('') 
+                            : '<span style="color:#64748b; font-size:0.8rem;">예측 명단을 배정해주세요.</span>'}
                     </div>
                 </div>
-            `;
-        });
-    }
-
-    // [기능] 메인 화면 미션 표시 업데이트
-    function updateMissionDisplay() {
-        if (gameState.lastMission) {
-            const mission = missionData[gameState.lastMission];
-            document.getElementById('mission-title').innerText = mission.title;
-            document.getElementById('mission-desc').innerText = mission.desc;
+            `).join('');
         }
-    }
 
-    // [관리자 기능] 게임 상태 업데이트 (저장)
-    function updateGameState() {
-        if(!confirm("정말로 업데이트 하시겠습니까? (이 동작은 되돌릴 수 없습니다)")) return;
-
-        const yut = document.getElementById('yut-result').value;
-        const special = document.getElementById('special-rule').value;
-
-        // 1. 위치 업데이트 로직 (단순화: 잡기/업기 상세 로직은 제외)
-        let moveCount = parseInt(yut);
-        let newPos = gameState.myTeamPos + moveCount;
+        // 4. 팀원 마일리지 현황 (v11.0: 마일리지 기준 내림차순 정렬 적용)
+        const filterTeamId = parseInt(document.getElementById('team-filter').value);
+        let filteredMembers = state.members.filter(m => m.teamId === filterTeamId);
         
-        // 빽도 처리 및 음수 방지
-        if (newPos < 0) newPos = 0;
-        // 골인 처리 (판 길이 초과 시)
-        if (newPos >= boardPoints.length) {
-            alert("🎉 축하합니다! 말이 골인했습니다!");
-            newPos = 0; // 일단 다시 처음으로 (로컬룰에 따라 변경 가능)
+        // 정렬 로직 (마일리지 높은 순)
+        filteredMembers.sort((a, b) => {
+            const distA = calcDist(a, state.viewMode === 'week' ? currentWeek : 'total');
+            const distB = calcDist(b, state.viewMode === 'week' ? currentWeek : 'total');
+            return distB - distA;
+        });
+        
+        document.getElementById('combined-team-status').innerHTML = filteredMembers.map((m, index) => {
+            const isBanned = checkBan(m);
+            const targetDist = calcDist(m, state.viewMode === 'week' ? currentWeek : 'total');
+            const goal = state.viewMode === 'week' ? 10 : 20; 
+            const prog = Math.min(100, (targetDist / goal) * 100);
+            
+            // 1,2,3등 메달 표시
+            let rankIcon = "";
+            if (targetDist > 0) {
+                if (index === 0) rankIcon = "🥇 ";
+                else if (index === 1) rankIcon = "🥈 ";
+                else if (index === 2) rankIcon = "🥉 ";
+            }
+            
+            return `
+            <div style="margin-bottom:12px; border-bottom:1px solid #1e293b; padding-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <div>
+                        <span style="font-weight:700; font-size:0.9rem; color:#f8fafc;">${rankIcon}${m.name}</span>
+                        <span style="font-size:0.7rem; padding:2px 6px; border-radius:4px; margin-left:6px; background:${isBanned ? 'rgba(239,68,68,0.1)' : 'rgba(52,211,153,0.1)'}; color:${isBanned ? '#ef4444' : '#34d399'}; border: 1px solid ${isBanned ? '#ef4444' : '#34d399'};">
+                            ${isBanned ? '🚫 3일휴식' : '✅ 출전가능'}
+                        </span>
+                    </div>
+                    <span style="font-size:0.8rem; font-weight:700; color:${targetDist >= goal ? '#34d399' : '#94a3b8'};">${targetDist.toFixed(1)} / ${goal}km</span>
+                </div>
+                <div class="progress-bg"><div class="progress-fill" style="width:${prog}%; background:${targetDist >= goal ? '#3b82f6':'#475569'}"></div></div>
+            </div>`;
+        }).join('');
+    }
+
+    function deleteMission(missionId) {
+        if(confirm("이 미션을 삭제하시겠습니까?")) { saveStateForUndo(); state.activeMissions = state.activeMissions.filter(m => m.id !== missionId); save(); }
+    }
+    function assignMember(missionId) {
+        const name = document.getElementById(`assign-sel-${missionId}`).value;
+        const mission = state.activeMissions.find(m => m.id === missionId);
+        if(mission && !mission.assignees.some(a => a.name === name)) { saveStateForUndo(); mission.assignees.push({ name: name, completed: false, dist: 0 }); save(); }
+    }
+    function removeAssignee(missionId, name) {
+        saveStateForUndo(); const mission = state.activeMissions.find(m => m.id === missionId);
+        if(mission) { mission.assignees = mission.assignees.filter(a => a.name !== name); save(); }
+    }
+    function completeMission(missionId, memberName, defaultDist) {
+        let actualDist = prompt(`${memberName}님이 오늘(${todayStr}) 실제로 달린 거리를 입력하세요 (km):`, defaultDist || 5);
+        if(actualDist === null) return; actualDist = parseFloat(actualDist); if(isNaN(actualDist) || actualDist <= 0) return alert("올바른 거리를 입력해주세요.");
+        saveStateForUndo();
+        const mission = state.activeMissions.find(m => m.id === missionId);
+        const assignee = mission.assignees.find(a => a.name === memberName);
+        assignee.completed = true; assignee.dist = actualDist;
+        const member = state.members.find(m => m.name === memberName);
+        if(member) { member.runs[todayStr] = (member.runs[todayStr] || 0) + actualDist; }
+        save();
+    }
+    function clearMissions() { if(confirm("모든 미션을 지우겠습니까?")) { saveStateForUndo(); state.activeMissions = []; save(); } }
+    function addCustomMission() {
+        const text = prompt("수동으로 추가할 미션을 입력하세요:");
+        if(text) { saveStateForUndo(); state.activeMissions.push({ id: Date.now(), text: text, assignees: [], defaultDist: 5 }); save(); }
+    }
+
+    let pendingData = null;
+    function getNextNode(c, ch) {
+        if(c===20) return 20; if(c===5 && ch==='diag1') return 21; if(c===10 && ch==='diag2') return 26; if(c===23) return ch==='diag2'?28:24;
+        const o={0:1,1:2,2:3,3:4,4:5,5:6,6:7,7:8,8:9,9:10,10:11,11:12,12:13,13:14,14:15,15:16,16:17,17:18,18:19,19:20};
+        const d1={21:22,22:23,24:25,25:15}; const d2={26:27,27:23,28:29,29:20}; return d1[c]||d2[c]||o[c]||20;
+    }
+    function getPrevNode(c, ch) {
+        if(c===0) return ch==='diag2'?29:19; if(c===15) return ch==='diag1'?25:14; if(c===23) return ch==='diag2'?27:22;
+        const oR={1:0,2:1,3:2,4:3,5:4,6:5,7:6,8:7,9:8,10:9,11:10,12:11,13:12,14:13,15:14,16:15,17:16,18:17,19:18,20:19};
+        const d1R={21:5,22:21,23:22,24:23,25:24}; const d2R={26:10,27:26,23:27,28:23,29:28}; return d1R[c]||d2R[c]||oR[c]||0; 
+    }
+
+    function attemptMove() {
+        const teamIdx = document.getElementById('edit-team-sel').value - 1;
+        const pieceVal = document.getElementById('edit-piece-sel').value;
+        const moveCount = parseInt(document.getElementById('edit-yut-val').value);
+        if (pieceVal === 'none') return alert("움직일 말이 없습니다.");
+
+        saveStateForUndo();
+        let team = state.teams[teamIdx];
+        team.lastM = missionDict[moveCount];
+
+        if (teamIdx === 0 && moveCount !== 0) {
+            let detailText = moveCount === 1 ? "(3km/2인↑)" : (moveCount === 2 ? "(5km/3인↑)" : (moveCount === 3 ? "(정기런/2인↑)" : (moveCount === 4 ? "(8km/2인↑)" : (moveCount === 5 ? "(15km/1인)" : ""))));
+            state.activeMissions.push({ id: Date.now(), text: `${missionDict[moveCount]} ${detailText}`, defaultDist: defaultDistMap[moveCount], assignees: [] });
         }
 
-        gameState.myTeamPos = newPos;
-        gameState.lastMission = yut; // 마지막 미션 저장
+        let startPos = pieceVal === 'wait' ? 0 : parseInt(pieceVal);
+        let movingPieces = pieceVal === 'wait' ? [team.pieces.find(p => p.st === 'wait')] : team.pieces.filter(p => p.st === 'active' && p.pos === startPos);
 
-        // 2. 로컬 스토리지에 저장
-        localStorage.setItem('yutGameState', JSON.stringify(gameState));
-
-        // 3. UI 업데이트
-        alert(`업데이트 완료! 우리 팀은 ${yut === '-1' ? '빽도' : moveCount + '칸'} 이동하여 ${boardPoints[newPos].name || newPos + '번'} 칸에 도착했습니다.`);
-        drawBoard();
-        updateMissionDisplay();
-        showPage('page-board'); // 메인으로 이동
+        if (moveCount > 0) {
+            if(startPos===5) return showPopup(teamIdx, movingPieces, moveCount, [{label:"직진 (외곽선)", val:"outer"}, {label:"지름길 (중앙)", val:"diag1"}]);
+            if(startPos===10) return showPopup(teamIdx, movingPieces, moveCount, [{label:"직진 (외곽선)", val:"outer"}, {label:"지름길 (중앙)", val:"diag2"}]);
+            if(startPos===23) return showPopup(teamIdx, movingPieces, moveCount, [{label:"좌하단 (돌아가기)", val:"diag1"}, {label:"우하단 (빠른 골인)", val:"diag2"}]);
+        } else if (moveCount === -1) {
+            if(startPos===0) return showPopup(teamIdx, movingPieces, moveCount, [{label:"외곽선 빽 (19번)", val:"outer"}, {label:"대각선 빽 (29번)", val:"diag2"}]);
+            if(startPos===15) return showPopup(teamIdx, movingPieces, moveCount, [{label:"외곽선 빽 (14번)", val:"outer"}, {label:"대각선 빽 (25번)", val:"diag1"}]);
+            if(startPos===23) return showPopup(teamIdx, movingPieces, moveCount, [{label:"우상단 방향 빽 (22번)", val:"diag1"}, {label:"좌상단 방향 빽 (27번)", val:"diag2"}]);
+        }
+        executeMove(movingPieces, moveCount, "outer", teamIdx);
     }
-</script>
 
+    function showPopup(teamIdx, pieces, move, options) {
+        pendingData = { teamIdx, pieces, move };
+        document.getElementById('direction-buttons-list').innerHTML = options.map(o => `<button class="direction-btn" onclick="applyChoice('${o.val}')">${o.label}</button>`).join('');
+        document.getElementById('direction-select-overlay').classList.remove('hidden');
+    }
+
+    function applyChoice(choice) { document.getElementById('direction-select-overlay').classList.add('hidden'); executeMove(pendingData.pieces, pendingData.move, choice, pendingData.teamIdx); pendingData = null; }
+
+    function executeMove(movingPieces, moveCount, choice, teamIdx) {
+        let curr = movingPieces[0].pos === 0 && movingPieces[0].st === 'wait' ? 0 : movingPieces[0].pos;
+
+        if (moveCount === -1) curr = getPrevNode(curr, choice);
+        else { for(let i=0; i<moveCount; i++) { curr = getNextNode(curr, choice); if(curr === 20) break; } }
+
+        let caughtText = "";
+        if (curr !== 0 && curr !== 20) {
+            state.teams.forEach((t, i) => {
+                if (i !== parseInt(teamIdx)) {
+                    let caughtPieces = t.pieces.filter(p => p.st === 'active' && p.pos === curr);
+                    if (caughtPieces.length > 0) {
+                        caughtPieces.forEach(p => { p.st = 'wait'; p.pos = 0; });
+                        caughtText = `\n🔥 대박! ${t.name}의 말을 잡았습니다! (한 번 더 던지세요)`;
+                    }
+                }
+            });
+        }
+
+        movingPieces.forEach(p => { p.pos = curr; p.st = curr === 20 ? 'goal' : 'active'; });
+        save();
+        
+        if(teamIdx === 0) { alert(`이동 완료! 상단에 미션이 등록되었습니다.${caughtText}`); tab('page-team', document.getElementById('tab-team')); } 
+        else { alert(`${state.teams[teamIdx].name} 이동 완료!${caughtText}`); tab('page-board', document.getElementById('tab-board')); }
+    }
+
+    function resetGame() { if(confirm("초기화 시 복구 불가능합니다. 초기화할까요?")) { localStorage.removeItem('running_yut_v11'); localStorage.removeItem('running_yut_v10'); location.reload(); } }
+
+    load();
+</script>
 </body>
 </html>
